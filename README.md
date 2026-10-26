@@ -1,28 +1,53 @@
-# Chester(切斯特)· 不开游戏登饥荒联机版 + 挂机领每周礼物
+<div align="center">
 
-**Chester — a background gift farmer for Don't Starve Together. No game launch needed. 中文为主, English summary at the bottom.**
+# 📦 Chester · 切斯特
+
+**不开游戏,挂着自动收《饥荒联机版》每周礼物**
+
+*You adventure in the waking world. Chester keeps the gifts.*
+
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![平台](https://img.shields.io/badge/平台-Windows%20x64-0078D6)](https://github.com/)
+[![依赖](https://img.shields.io/badge/第三方依赖-零-2E7D32)]()
+[![皮肤](https://img.shields.io/badge/皮肤-7%20套-C25A1E)]()
+[![界面](https://img.shields.io/badge/界面-中文%20%2F%20English-C25A1E)]()
+[![许可](https://img.shields.io/badge/许可-MIT-B3A279)]()
+
+![Chester 面板预览](screenshots/dark.png)
+
+*暮夜炭火皮肤 · 礼物自动配游戏图标 / 中文名 / 稀有度配色*
+
+| 饥荒官网(默认) | 橙白 | 冬季盛宴 | 熔炉余烬 |
+|---|---|---|---|
+| ![](screenshots/parchment.png) | ![](screenshots/orange.png) | ![](screenshots/winter.png) | ![](screenshots/forge.png) |
+
+</div>
+
+## ✨ 它能做什么
+
+| | |
+|---|---|
+| 🎁 **自动收周礼** | 每 360 秒向 Klei 心跳一次;礼物自动回执、开箱、入账,周上限 8/8 领满即停 |
+| 🌙 **不开游戏** | 借 Steam 会话票据登录,日常只走纯 HTTP——连 Steam 客户端都不用开 |
+| 👥 **多账号勾选挂机** | 每账号一次 Steam 切号+点添加;之后勾选即挂,账号间自动错峰,独立数据库 |
+| 🖼️ **2953 件皮肤图鉴** | 礼物自动配游戏图标、官方英文名、中文名、稀有度配色(数据来自 dst-skins-checklist) |
+| 🎨 **7 套皮肤 / 中英界面** | 饥荒官网明亮(默认)、橙白、暮夜炭火、冬青鎏金、熔炉余烬、月白、苔林 |
+| 🩹 **全自动自愈** | token 过期自动续期/重登、断网退避重试、未开礼物自动清理,挂着不用管 |
+
+## ⚡ 快速开始
+
+1. 装 **64 位 Python 3.8+**,Steam 客户端登录(不必开游戏);
+2. 双击 **`启动控制面板.bat`**,浏览器自动打开 `http://127.0.0.1:8377`;
+3. 点「▶ 开始挂机」,看到「心跳正常」就成了——完整图文见 [挂机指南.html](挂机指南.html)。
+
+> ⚠️ 本项目与 Klei Entertainment 无关联;自动化行为可能违反游戏条款,**风险自担,仅供学习与个人使用**。
+
+---
 
 > 📦 **为什么叫 Chester?** 饥荒里,切斯特是那只用眼骨召唤、忠实跟随你的随行礼物箱——
 > 你只管冒险,它替你背着所有宝贝。这个工具就是你的切斯特:你不在游戏,它替你收礼、开礼、存礼。
 
-![界面预览](screenshots/parchment.png)
-
-> 对 `dontstarve_steam_x64.exe` 做 C 层逆向还原出的**可独立运行、无需启动游戏**的 Klei 登录/心跳/领礼工具链。
-> 全部结论经真实账号线上验证;2026-10-26 在当前版本 exe/dll 上全链路复验通过。
-
-- **小白入口**:双击 [挂机指南.html](挂机指南.html)(推荐,带进度勾选/排错矩阵)
-- **可视化挂机**:双击 `启动控制面板.bat`(本地控制面板:开始/停止/统计/礼物监控/历史/每账号数据库)
-- **黑窗口挂机**:双击 `心跳自动领取.bat`
-
 ---
-
-## 0. 截图
-
-| 饥荒官网(默认) | 冬季盛宴 | 熔炉 |
-|---|---|---|
-| ![官网明亮](screenshots/parchment.png) | ![冬季盛宴](screenshots/winter.png) | ![熔炉](screenshots/forge.png) |
-
-共 6 套皮肤,面板顶栏一键切换(另含 暗夜营地/月色/常青森林)。
 
 ## 1. 这是什么(30 秒)
 
@@ -39,7 +64,7 @@
 边界:不改游戏文件、不注入进程、不伪造请求体,只发与游戏完全相同的正规 HTTP;
 登录/礼物行为仍受 Klei 服务条款约束,仅供学习与自用。
 
-## 2. 快速开始
+## 2. 安装与运行(详细)
 
 前置(一次性):Windows x64 + **64 位** Python 3.8+(仅标准库);Steam 客户端已登录(不必开 DST);
 `steam_api64.dll` 在查找路径上(脚本目录 → 上级 → 上级 `dst\`,当前布局已就位)。
@@ -101,7 +126,7 @@ chester\
 ├─ 启动控制面板.bat / 心跳自动领取.bat
 ├─ klei_panel.py            控制面板服务 v5(多账号勾选/设置/统计/礼物中文标签,
 │                             127.0.0.1:8377,--port/--no-browser)
-├─ web\挂机面板.html          面板前端(中英切换、6 套皮肤、DST 图标、Amarante 字体)
+├─ web\挂机面板.html          面板前端(中英切换、7 套皮肤、DST 图标、Amarante 字体)
 ├─ web\assets\               DST 图标(icons)+ 字体(fonts)+ 全皮肤图标库(items,2953 件)
 │                             面板 /assets/ 伺服
 ├─ panel_settings.json       面板设置(运行期生成,gitignore)
@@ -224,6 +249,7 @@ worker 每轮顺序处理所有启用账号(账号间错峰 3 秒),领满/暂停
 - v1.1c 10-26:多账号勾选挂机(注册表/顺序轮询/L2 单账号暂停)
 - v1.1d 10-26:DST 图标 + Amarante 字体 + 中英切换 + /assets/ 静态服务
 - v1.1e 10-26:皮肤系统(6 套主题:饥荒官网明亮=默认/暗夜营地/冬季盛宴/熔炉/月色/常青森林)
+- v1.1f 10-27:配色全面重设计+新增橙白,7 套皮肤;稀有度配色;全皮肤数据库 2953 件(图标/中文名/稀有度)接入面板
 - **v1.2 10-26:项目更名 Chester(切斯特)**;视觉验收轮优化(品牌标/favicon/切换过渡)
 
 
