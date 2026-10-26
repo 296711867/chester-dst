@@ -10,8 +10,8 @@
 @font-face{font-family:"Amarante";
   src:url("/assets/fonts/amarante.woff2") format("woff2");
   font-weight:400;font-style:normal;font-display:swap}
-/* ===== 皮肤系统:默认=饥荒官网明亮;html[data-theme] 切换 ===== */
-:root{
+/* ===== 皮肤系统:7 套,全部通过 WCAG AA 对比度预检;html[data-theme] 切换 ===== */
+:root{ /* 饥荒官网(默认,明亮) */
   --dur:180ms; --blur:14px;
   --mono:Consolas,"Courier New",monospace;
   --display:"Amarante","Ink Free","KaiTi","STKaiti","Segoe UI","Microsoft YaHei",sans-serif;
@@ -20,72 +20,85 @@
   --muted-bg:#eadfc4; --line:#b3a279; --th-bg:#e9dcc0; --zebra:rgba(120,90,50,.05);
   --hover:rgba(194,90,30,.08);
   --text:#3b2f23; --text-2:#6b5b45;
-  --accent:#a84a12; --accent-ink:#ffffff; --accent-soft:rgba(168,74,18,.14);
+  --accent:#a84a12; --accent-fg:#a84a12; --accent-ink:#ffffff; --accent-soft:rgba(168,74,18,.14);
   --ok:#2e7d32; --red:#c0392b; --err-fg:#b3261e; --red-soft:rgba(192,57,43,.12);
   --amber:#7d5b00; --amber-soft:rgba(154,103,0,.14);
   --box-fg:#5d3a83; --box-bg:rgba(106,67,144,.12);
   --shadow:rgba(80,60,30,.18);
 }
-html[data-theme="dark"]{
-  --bg:#0F172A; --glow1:rgba(34,197,94,.10); --glow2:rgba(59,130,246,.12);
-  --card:rgba(27,35,54,.72); --card-solid:#1B2336; --card-border:rgba(255,255,255,.16);
-  --muted-bg:#272F42; --line:#475569; --th-bg:#202A40; --zebra:rgba(255,255,255,.03);
-  --hover:rgba(34,197,94,.07);
-  --text:#F8FAFC; --text-2:#94A3B8;
-  --accent:#22C55E; --accent-ink:#052E16; --accent-soft:rgba(34,197,94,.15);
-  --ok:#22C55E; --red:#EF4444; --err-fg:#F87171; --red-soft:rgba(239,68,68,.15);
-  --amber:#EAB308; --amber-soft:rgba(234,179,8,.15);
-  --box-fg:#c084fc; --box-bg:rgba(147,51,234,.18);
-  --shadow:rgba(0,0,0,.25);
+html[data-theme="orange"]{ /* 橙白(极简明亮) */
+  --bg:#f7f5f2; --glow1:rgba(234,88,12,.08); --glow2:rgba(120,113,108,.06);
+  --card:rgba(255,255,255,.92); --card-solid:#ffffff; --card-border:rgba(120,113,108,.20);
+  --muted-bg:#f0ece6; --line:#ddd6cb; --th-bg:#f4f0e9; --zebra:rgba(0,0,0,.02);
+  --hover:rgba(193,65,12,.06);
+  --text:#292524; --text-2:#6d6660;
+  --accent:#c2410c; --accent-fg:#b53d0b; --accent-ink:#ffffff; --accent-soft:rgba(193,65,12,.08);
+  --ok:#15803d; --red:#dc2626; --err-fg:#b91c1c; --red-soft:rgba(220,38,38,.10);
+  --amber:#8a5406; --amber-soft:rgba(138,84,6,.10);
+  --box-fg:#6d28d9; --box-bg:rgba(124,58,237,.10);
+  --shadow:rgba(28,25,23,.10);
 }
-html[data-theme="winter"]{
-  --bg:#0e1a2e; --glow1:rgba(79,195,247,.10); --glow2:rgba(142,36,170,.10);
-  --card:rgba(22,36,58,.80); --card-solid:#16243A; --card-border:rgba(120,170,230,.22);
-  --muted-bg:#1a2b47; --line:#33507A; --th-bg:#16273F; --zebra:rgba(140,180,230,.04);
-  --hover:rgba(79,195,247,.08);
-  --text:#e8f0fa; --text-2:#8fa8c7;
-  --accent:#4fc3f7; --accent-ink:#06283A; --accent-soft:rgba(79,195,247,.15);
-  --ok:#4fc3f7; --red:#d32f2f; --err-fg:#ff8a80; --red-soft:rgba(239,83,80,.15);
-  --amber:#ffb74d; --amber-soft:rgba(255,183,77,.15);
-  --box-fg:#b39ddb; --box-bg:rgba(179,157,219,.15);
-  --shadow:rgba(0,0,0,.3);
+html[data-theme="dark"]{ /* 暮夜炭火(深炭+暖橙) */
+  --bg:#161412; --glow1:rgba(251,146,60,.09); --glow2:rgba(120,113,108,.06);
+  --card:rgba(41,37,36,.75); --card-solid:#292524; --card-border:rgba(231,229,228,.12);
+  --muted-bg:#33302e; --line:#57534e; --th-bg:#26221f; --zebra:rgba(255,255,255,.03);
+  --hover:rgba(251,146,60,.08);
+  --text:#fafaf9; --text-2:#a8a29e;
+  --accent:#fb923c; --accent-fg:#fb923c; --accent-ink:#431407; --accent-soft:rgba(251,146,60,.15);
+  --ok:#4ade80; --red:#f87171; --err-fg:#f87171; --red-soft:rgba(248,113,113,.15);
+  --amber:#fbbf24; --amber-soft:rgba(251,191,36,.15);
+  --box-fg:#c4b5fd; --box-bg:rgba(196,181,253,.15);
+  --shadow:rgba(0,0,0,.30);
 }
-html[data-theme="forge"]{
-  --bg:#1d0f0d; --glow1:rgba(255,112,67,.12); --glow2:rgba(255,171,64,.08);
-  --card:rgba(48,22,18,.82); --card-solid:#301216; --card-border:rgba(255,140,90,.22);
-  --muted-bg:#33201B; --line:#6B352A; --th-bg:#2A1712; --zebra:rgba(255,140,90,.04);
-  --hover:rgba(255,112,67,.08);
-  --text:#fbe9e2; --text-2:#c9a08f;
-  --accent:#ff7043; --accent-ink:#3A0F05; --accent-soft:rgba(255,112,67,.16);
-  --ok:#ff8a65; --red:#d32f2f; --err-fg:#ff8a80; --red-soft:rgba(255,82,82,.16);
-  --amber:#ffa726; --amber-soft:rgba(255,167,38,.15);
-  --box-fg:#ce93d8; --box-bg:rgba(206,147,216,.15);
+html[data-theme="winter"]{ /* 冬青鎏金(深云杉+古金) */
+  --bg:#0f1c17; --glow1:rgba(207,159,63,.08); --glow2:rgba(45,106,79,.08);
+  --card:rgba(23,42,34,.80); --card-solid:#172a22; --card-border:rgba(180,200,170,.16);
+  --muted-bg:#213a30; --line:#3e5c4d; --th-bg:#1b3028; --zebra:rgba(200,220,190,.04);
+  --hover:rgba(207,159,63,.07);
+  --text:#eef4ee; --text-2:#9db5a4;
+  --accent:#cf9f3f; --accent-fg:#e0b95f; --accent-ink:#241a05; --accent-soft:rgba(207,159,63,.15);
+  --ok:#8fd0a5; --red:#e57373; --err-fg:#f0a08e; --red-soft:rgba(229,115,115,.15);
+  --amber:#e6c26a; --amber-soft:rgba(230,194,106,.15);
+  --box-fg:#b9a7d9; --box-bg:rgba(185,167,217,.15);
+  --shadow:rgba(0,0,0,.30);
+}
+html[data-theme="forge"]{ /* 熔炉余烬(深暗+余烬橙红) */
+  --bg:#151011; --glow1:rgba(224,93,61,.10); --glow2:rgba(255,171,64,.06);
+  --card:rgba(40,28,26,.80); --card-solid:#281c1a; --card-border:rgba(240,150,110,.16);
+  --muted-bg:#2e211f; --line:#5a4038; --th-bg:#241a18; --zebra:rgba(255,180,140,.04);
+  --hover:rgba(224,93,61,.08);
+  --text:#f7ece7; --text-2:#c0a296;
+  --accent:#de5638; --accent-fg:#f08a6c; --accent-ink:#2b0d06; --accent-soft:rgba(222,86,56,.16);
+  --ok:#f4a261; --red:#e05252; --err-fg:#f2a099; --red-soft:rgba(224,82,82,.16);
+  --amber:#f0b429; --amber-soft:rgba(240,180,41,.15);
+  --box-fg:#c3a6e8; --box-bg:rgba(195,166,232,.15);
   --shadow:rgba(0,0,0,.35);
 }
-html[data-theme="lunar"]{
-  --bg:#eef4f8; --glow1:rgba(61,110,158,.10); --glow2:rgba(160,140,220,.10);
-  --card:rgba(255,255,255,.90); --card-solid:#ffffff; --card-border:rgba(60,100,140,.20);
-  --muted-bg:#dfeaf2; --line:#b0c4d4; --th-bg:#e0ebf3; --zebra:rgba(60,100,140,.04);
-  --hover:rgba(61,110,158,.08);
-  --text:#24384a; --text-2:#486479;
-  --accent:#356392; --accent-ink:#ffffff; --accent-soft:rgba(53,99,146,.14);
-  --ok:#2e6e4e; --red:#c62828; --err-fg:#b3261e; --red-soft:rgba(198,40,40,.11);
-  --amber:#7d5a00; --amber-soft:rgba(125,90,0,.13);
-  --box-fg:#5e35b1; --box-bg:rgba(94,53,177,.11);
-  --shadow:rgba(40,70,100,.15);
+html[data-theme="lunar"]{ /* 月白(冷调纸白+石板蓝) */
+  --bg:#f1f3f6; --glow1:rgba(51,81,122,.08); --glow2:rgba(100,116,139,.06);
+  --card:rgba(255,255,255,.92); --card-solid:#ffffff; --card-border:rgba(60,100,140,.20);
+  --muted-bg:#e8ecf1; --line:#ccd4dd; --th-bg:#e9edf2; --zebra:rgba(30,41,59,.03);
+  --hover:rgba(51,81,122,.06);
+  --text:#1f2937; --text-2:#57606c;
+  --accent:#33517a; --accent-fg:#33517a; --accent-ink:#ffffff; --accent-soft:rgba(51,81,122,.10);
+  --ok:#1d6f54; --red:#c02626; --err-fg:#b91c1c; --red-soft:rgba(192,38,38,.10);
+  --amber:#8a5a00; --amber-soft:rgba(138,90,0,.12);
+  --box-fg:#6d28d9; --box-bg:rgba(109,40,217,.10);
+  --shadow:rgba(15,23,42,.10);
 }
-html[data-theme="forest"]{
-  --bg:#eff5ea; --glow1:rgba(61,122,55,.10); --glow2:rgba(140,110,50,.08);
-  --card:rgba(253,255,250,.90); --card-solid:#fdfffa; --card-border:rgba(70,110,50,.20);
-  --muted-bg:#dfe9d8; --line:#aebfa2; --th-bg:#dfe9d5; --zebra:rgba(70,110,50,.04);
-  --hover:rgba(61,122,55,.08);
-  --text:#2b3a26; --text-2:#57694d;
-  --accent:#35682f; --accent-ink:#ffffff; --accent-soft:rgba(53,104,47,.14);
-  --ok:#2e7d32; --red:#b3413a; --err-fg:#a02c25; --red-soft:rgba(179,65,58,.11);
+html[data-theme="forest"]{ /* 苔林(灰绿纸+苔藓绿) */
+  --bg:#f0f4ec; --glow1:rgba(74,112,64,.08); --glow2:rgba(120,110,60,.06);
+  --card:rgba(252,254,250,.92); --card-solid:#fcfefa; --card-border:rgba(70,110,50,.20);
+  --muted-bg:#e4ebdc; --line:#c2cfb6; --th-bg:#e7eedd; --zebra:rgba(70,110,50,.04);
+  --hover:rgba(74,112,64,.07);
+  --text:#2a3327; --text-2:#5c6a52;
+  --accent:#4a7040; --accent-fg:#4a7040; --accent-ink:#ffffff; --accent-soft:rgba(74,112,64,.12);
+  --ok:#2e7d32; --red:#b0413a; --err-fg:#9a2c25; --red-soft:rgba(176,65,58,.11);
   --amber:#7d5b00; --amber-soft:rgba(125,91,0,.13);
-  --box-fg:#6a4390; --box-bg:rgba(106,67,144,.11);
-  --shadow:rgba(50,80,40,.15);
+  --box-fg:#5d3a83; --box-bg:rgba(93,58,131,.11);
+  --shadow:rgba(50,80,40,.12);
 }
+
 /* ===== 布局与组件(全部取色于皮肤变量) ===== */
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -128,7 +141,7 @@ button{cursor:pointer;font-family:inherit}
 .btn-sm{padding:5px 10px;font-size:12.5px;border-radius:8px;white-space:nowrap}
 .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
   padding:3px 14px;font-weight:600;font-size:13px;white-space:nowrap}
-.badge.run{background:var(--accent-soft);color:var(--accent)}
+.badge.run{background:var(--accent-soft);color:var(--accent-fg)}
 .badge.idle{background:var(--muted-bg);color:var(--text-2)}
 .badge.err{background:var(--red-soft);color:var(--err-fg)}
 .badge.cap{background:var(--amber-soft);color:var(--amber)}
@@ -188,7 +201,7 @@ label{color:var(--text-2);font-size:13px}
 .bigbar{height:12px;border-radius:6px;background:var(--muted-bg);overflow:hidden;margin-top:6px}
 .bigbar>i{display:block;height:100%;border-radius:6px;
   background:linear-gradient(90deg,var(--accent) 55%,var(--amber));transition:width .4s}
-.eta{color:var(--accent);font-size:13px;font-weight:600}
+.eta{color:var(--accent-fg);font-size:13px;font-weight:600}
 .ref{font-size:12px;color:var(--text-2)}
 .chip{display:inline-block;background:var(--amber-soft);color:var(--amber);
   border-radius:999px;padding:1px 10px;font-size:12.5px;font-weight:600}
@@ -199,14 +212,14 @@ th{position:sticky;top:0;background:var(--th-bg);color:var(--text-2);text-align:
 td{padding:6px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 tbody tr:nth-child(even){background:var(--zebra)}
 tbody tr:hover{background:var(--hover)}
-.ok{color:var(--ok);font-weight:600}.fail{color:var(--err-fg);font-weight:600}
+.ok{color:var(--accent-fg);font-weight:600}.fail{color:var(--err-fg);font-weight:600}
 .muted{color:var(--text-2)}
 .gift-name{font-weight:600}
 .rawcode{font-size:11px;font-family:var(--mono);color:var(--text-2)}
 .src{display:inline-flex;align-items:center;gap:5px;border-radius:999px;
   padding:1px 9px;font-size:12px;font-weight:600}
 .src img{width:13px;height:13px}
-.src.tick{background:var(--accent-soft);color:var(--accent)}
+.src.tick{background:var(--accent-soft);color:var(--accent-fg)}
 .src.daily{background:var(--amber-soft);color:var(--amber)}
 .src.box{background:var(--box-bg);color:var(--box-fg)}
 .acc-tag{font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
@@ -256,6 +269,7 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
   <label><span data-i18n="skin">皮肤</span>
     <select id="skinSel">
       <option value="parchment" data-i18n="skin_parchment"></option>
+      <option value="orange" data-i18n="skin_orange"></option>
       <option value="dark" data-i18n="skin_dark"></option>
       <option value="winter" data-i18n="skin_winter"></option>
       <option value="forge" data-i18n="skin_forge"></option>
@@ -405,8 +419,9 @@ zh:{
   remove_confirm:"移除 %s?(数据目录保留,可重新添加)",
   remove_fail:"移除失败", remove_account:"移除该账号", toggle_fail:"切换失败", srv_down:"操作失败:面板服务无响应",
   last_ok:"正常", hours_h:"小时",
-  skin:"皮肤", skin_parchment:"饥荒官网", skin_dark:"暗夜营地",
-  skin_winter:"冬季盛宴", skin_forge:"熔炉", skin_lunar:"月色", skin_forest:"常青森林"
+  skin:"皮肤", skin_parchment:"饥荒官网", skin_orange:"橙白",
+  skin_dark:"暮夜炭火", skin_winter:"冬青鎏金", skin_forge:"熔炉余烬",
+  skin_lunar:"月白", skin_forest:"苔林"
 },
 en:{
   brand:"Chester · DST Gift Panel", interval:"Interval", sec:"s", start:"Start", stop:"Stop",
@@ -441,13 +456,14 @@ en:{
   remove_confirm:"Remove %s? (data folder is kept, can re-add)",
   remove_fail:"Remove failed", remove_account:"Remove account", toggle_fail:"Toggle failed", srv_down:"Failed: panel service unreachable",
   last_ok:"ok", hours_h:"h",
-  skin:"Skin", skin_parchment:"Official", skin_dark:"Dark camp",
-  skin_winter:"Winter's Feast", skin_forge:"The Forge", skin_lunar:"Lunar", skin_forest:"Evergreen"
+  skin:"Skin", skin_parchment:"Official", skin_orange:"Orange & White",
+  skin_dark:"Ember Night", skin_winter:"Winter Gold", skin_forge:"Forge Embers",
+  skin_lunar:"Moonlight", skin_forest:"Evergreen"
 }};
 var lang="zh",skin="parchment";
 try{lang=localStorage.getItem("klei_panel_lang")||"zh"}catch(e){}
 try{skin=localStorage.getItem("klei_panel_skin")||"parchment"}catch(e){}
-if(!["parchment","dark","winter","forge","lunar","forest"].includes(skin))skin="parchment";
+if(!["parchment","orange","dark","winter","forge","lunar","forest"].includes(skin))skin="parchment";
 function t(k){var d=I18N[lang]||I18N.zh;return (d&&d[k])!=null?d[k]:(I18N.zh[k]!=null?I18N.zh[k]:k);}
 function applyLang(){
   document.documentElement.lang=lang==="zh"?"zh-CN":"en";
@@ -725,7 +741,7 @@ $("saveSetBtn").addEventListener("click",function(){
     auto_box:$("set-autobox").checked,
     desc:$("set-desc").value.trim()||"klei_panel"
   }).then(function(r){
-    if(r.ok){note.style.color="var(--accent)";note.textContent=t("saved");
+    if(r.ok){note.style.color="var(--accent-fg)";note.textContent=t("saved");
       setTimeout(function(){note.textContent=""},2000);}
     else{note.style.color="var(--err-fg)";note.textContent=r.error||t("save_fail");}
     btn.disabled=false;setTimeout(refreshStatus,300);

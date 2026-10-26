@@ -199,7 +199,8 @@ ITEM_ZH = {
     # 常见物件/生物
     "TOPHAT": "礼帽", "CHESTER": "切斯特", "EYEBONE": "眼骨", "GLOMMER": "格罗姆",
     "UMBRELLA": "雨伞", "BEEFALO": "皮弗娄牛", "BELL": "铃铛", "CATCOON": "猫狸",
-    "GLASSCUTTER": "玻璃刀", "MARBLE": "大理石",
+    "GLASSCUTTER": "玻璃刀", "MARBLE": "大理石", "DECOR": "装饰",
+    "VEST": "马甲", "DRESS": "长裙", "PICTUREFRAME": "画框",
 }
 SKIN_ZH = {
     "CHEF": "厨师", "FORMAL": "正装", "GUESTOFHONOR": "贵宾", "ROSE": "玫瑰",
@@ -207,6 +208,7 @@ SKIN_ZH = {
     "TRIEDANDTRUE": "久经考验", "CLASSIC": "经典", "ICE": "寒冰",
     "WIZARD": "巫师", "BEACH": "海滩", "SHADOW": "暗影", "GORGE": "熔炉",
     "HALLOWEEN": "万圣", "WINTER": "冬宴", "LUCY": "露西",
+    "VENTRILOQUIST": "腹语", "WESTERN": "西部", "MAGMATIC": "炽岩",
 }
 SLOT_OF = {"TOPHAT": "头部", "UMBRELLA": "手部"}   # 物件自带头部/手部语义的兜底
 
