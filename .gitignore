@@ -1,0 +1,22 @@
+# ── 凭证与账号数据（token / 会话 / 库存 / 运行日志）──
+# 所有运行期产生的账号凭证、库存快照、含 UserID 的日志统一放 credentials/，
+# 整个目录不进版本库。
+credentials/
+
+# ── Python 缓存 ──
+__pycache__/
+*.pyc
+# ── 面板本地配置(用户私有,不入库)──
+panel_settings.json
+
+# ── 面板账号注册表(本地配置)──
+panel_accounts.json
+
+# ── 调试截图 ──
+_panel_*.png
+_wiki_*.png
+_skin_*.png
+_verify_*.png
+_v_*.png
+_v2_*.png
+_check_*.png

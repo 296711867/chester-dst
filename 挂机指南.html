@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chester · 饥荒挂机指南 — 从零挂上一个账号</title>
+<style>
+:root{
+  --bg:#FAF7F2; --ink:#2A2620; --muted:#6E675C; --card:#FFFFFF; --line:#E5DFD3;
+  --accent:#C25A1E; --ok:#2E7D32; --ok-bg:#E8F3E9; --warn:#9A6700; --warn-bg:#FFF4E0;
+  --danger:#C62828; --danger-bg:#FDECEA; --code-bg:#211D17; --code-ink:#EDE7DA;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.7 system-ui,"Segoe UI","Microsoft YaHei",sans-serif}
+code,pre{font-family:"Cascadia Mono",Consolas,monospace}
+main{max-width:860px;margin:0 auto;padding:84px 20px 40px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:22px 26px;margin:22px 0;scroll-margin-top:76px}
+h1{font-size:26px;margin:.2em 0}
+h2{font-size:20px;border-bottom:2px solid var(--line);padding-bottom:.35em}
+h3{font-size:16px}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;background:#fffdf9ee;
+  backdrop-filter:blur(6px);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:10px 18px;flex-wrap:wrap}
+.brand{font-weight:700;color:var(--accent);white-space:nowrap}
+.progress-wrap{display:flex;align-items:center;gap:8px;min-width:180px}
+.progress-track{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s}
+#ptext{font-size:12px;color:var(--muted);white-space:nowrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips a{font-size:12px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
+  border-radius:999px;padding:2px 10px;background:#fff}
+.chips a:hover{color:var(--accent);border-color:var(--accent)}
+.ghost{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 12px;
+  cursor:pointer;font-size:12px;color:var(--muted)}
+.ghost:hover{color:var(--danger);border-color:var(--danger)}
+.hero{text-align:center;padding:34px 26px}
+.hero p.sub{color:var(--muted)}
+.flow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0}
+.flow .node{border:2px solid var(--accent);border-radius:10px;padding:10px 16px;font-weight:600}
+.flow .arr{align-self:center;color:var(--accent);font-weight:700}
+.badge{display:inline-block;font-size:12px;border-radius:999px;padding:2px 10px;vertical-align:2px}
+.badge.gray{background:#eee;color:var(--muted)}
+.badge.orange{background:var(--warn-bg);color:var(--warn)}
+.step{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);
+  border-radius:10px;padding:10px 14px;margin:10px 0;background:#fffdf9}
+.step input[type=checkbox]{width:18px;height:18px;margin-top:4px;accent-color:var(--accent)}
+.cmd{position:relative;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:10px 14px;margin:10px 0}
+.cmd pre{margin:0;font-size:14px;white-space:pre-wrap;word-break:break-all}
+.copybtn{position:absolute;top:8px;right:8px;font-size:12px;border:1px solid var(--line);
+  background:#fff;border-radius:6px;padding:2px 10px;cursor:pointer;color:var(--muted)}
+.copybtn:hover{color:var(--accent);border-color:var(--accent)}
+.log{background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:14px 16px;
+  font-size:13.5px;line-height:1.75;overflow-x:auto;margin:12px 0}
+.log .expect{background:rgba(46,125,50,.16);border-left:3px solid var(--ok);
+  display:block;padding-left:8px;margin:0 -8px}
+.log .noise{opacity:.55}
+.callout{border-left:4px solid var(--accent);background:#fff8f2;border-radius:0 10px 10px 0;
+  padding:10px 16px;margin:12px 0}
+.callout--ok{border-color:var(--ok);background:var(--ok-bg)}
+.callout--warn{border-color:var(--warn);background:var(--warn-bg)}
+.callout--danger{border-color:var(--danger);background:var(--danger-bg)}
+.matrix{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+.matrix th,.matrix td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.matrix th{background:#f4efe6;position:sticky;top:56px}
+.matrix code{background:#f4efe6;padding:1px 5px;border-radius:4px;font-size:12.5px}
+details{border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:8px 0;background:#fff}
+summary{cursor:pointer;font-weight:600}
+table.plain{border-collapse:collapse;width:100%;font-size:14px}
+table.plain th,table.plain td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:10px 0 30px}
+@media print{
+  .topbar,.copybtn{display:none}
+  details{display:block}
+  section{break-inside:avoid;border:none}
+  main{padding-top:10px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">📦 Chester · 饥荒挂机指南</div>
+  <div class="progress-wrap"><div class="progress-track"><div class="progress-bar" id="pbar"></div></div><span id="ptext">0/7 步</span></div>
+  <nav class="chips">
+    <a href="#s0">原理</a><a href="#s1">环境自检</a><a href="#s2">首次运行</a><a href="#s3">读懂日志</a>
+    <a href="#s4">礼物</a><a href="#s5">日常挂机</a><a href="#s6">排错</a><a href="#s7">进阶</a>
+    <a href="#s8">多账号</a><a href="#s9">FAQ</a>
+  </nav>
+  <button class="ghost" id="resetBtn">重置进度</button>
+</header>
+
+<main>
+
+<section class="hero">
+  <h1>Chester:不开游戏,挂着领每周礼物</h1>
+  <p class="sub">📦 项目代号「切斯特」——饥荒里那只随行礼物箱,你不在游戏,它替你收礼。</p>
+  <p class="sub">黑窗口/控制面板挂着 → 每 6 分钟自动心跳 → 有礼物自动领取 → token 自动续期。<br>
+  全程只发<b>与游戏完全相同</b>的正规 HTTP 请求;不改游戏文件、不注入进程。</p>
+  <div class="flow">
+    <div class="node">① 环境自检</div><div class="arr">→</div>
+    <div class="node">② 双击运行</div><div class="arr">→</div>
+    <div class="node">③ 看日志确认</div>
+  </div>
+  <p class="sub">预计耗时:约 5 分钟 · 适合完全不懂代码的人照做</p>
+  <div class="callout callout--warn">⚠️ 任何自动化都受 Klei 服务条款约束,风险自担,仅供自用学习。
+  周礼有上限(PC 每周 8 个),控制面板会自动"领满即停"。</div>
+</section>
+
+<section id="s0">
+  <h2>第 0 章 · 30 秒了解它</h2>
+  <p><b>它做什么:</b>替你向 Klei 服务器完成"我登录了 / 我还在玩"的心跳,每 360 秒一次;
+  有皮肤礼物掉落时自动回执、自动开礼入账;登录凭证(token)快过期时自动续期。</p>
+  <p><b>它不做什么:</b>不启动游戏、不改游戏文件、不注入任何进程、(目前)不支持一次挂多个账号。
+  挂机期间需要一个窗口/进程保持运行。</p>
+  <details>
+    <summary>展开:原理一图流(可跳过)</summary>
+    <pre style="font-size:13px;overflow-x:auto">Steam 客户端(已登录)
+   │ 取会话票据(steam_api64.dll,与游戏同款调用)
+   ▼
+POST login.kleientertainment.com/login/LoginViaSteam
+   │ 返回 60 分钟 GameSessionToken(KU_ 账号凭证)
+   ▼
+每 360 秒 POST items.kleientertainment.com/clientitems/DST/Tick {"Token":…}
+   │ 服务端按心跳推进掉落进度
+   ▼
+有礼 {"GiftReceived":{"Key":…}}
+   ├─ 回执 VerifyGiftingReceipt
+   ├─ GetAllItems 找 Context==3 的未开礼物
+   └─ 逐个 SetItemOpened 开礼入账(周礼 PC 上限 8 个/周)
+   ▼
+token 到期前 TokenPurpose 续期(链式续期已实测成立)</pre>
+  </details>
+</section>
+
+<section id="s1">
+  <h2>第 1 章 · 环境自检(3 项)</h2>
+
+  <div class="step"><input type="checkbox" data-step="py" id="ck-py">
+  <div><b>① Python 3.8+,且必须是 64 位</b><br>
+  打开 cmd(资源管理器地址栏输 <code>cmd</code> 回车即可),粘贴:
+  <div class="cmd"><button class="copybtn">复制</button><pre>python --version</pre></div>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python -c "import struct; print(struct.calcsize('P')*8)"</pre></div>
+  达标标志:第一条输出 <code>Python 3.x.x</code>,第二条输出 <code>64</code>。<br>
+  没装/是 32 位:去 python.org 装 <b>64 位</b>版,安装时勾选 <b>Add python.exe to PATH</b>。
+  没有python命令时也可试 <code>py -3 --version</code>。</div></div>
+
+  <div class="step"><input type="checkbox" data-step="steam" id="ck-steam">
+  <div><b>② Steam 客户端已运行并登录</b>(不要求开 DST)<br>
+  达标标志:任务栏右下角 Steam 图标在线(不是离线模式)。脚本只借你的登录态取票据,
+  不占用游戏、不与游戏冲突。</div></div>
+
+  <div class="step"><input type="checkbox" data-step="dll" id="ck-dll">
+  <div><b>③ steam_api64.dll 能被找到</b><br>
+  自动查找顺序:脚本同目录 → 上级目录 → 上级下的 <code>dst\</code>。
+  当前布局(<code>klei_login-main</code> 与 <code>dst</code> 同级)已就位,无需动作。<br>
+  若报"找不到 steam_api64.dll":把项目文件夹和 <code>dst</code> 放同级,或用第 7 章的
+  <code>--dll</code> 指定完整路径。</div></div>
+
+  <div class="callout callout--ok">三项都勾上就可以继续了。</div>
+</section>
+
+<section id="s2">
+  <h2>第 2 章 · 首次运行</h2>
+  <p><b>方式 A(推荐,可看统计/礼物监控,界面支持中/英文切换):</b>双击 <code>启动控制面板.bat</code> → 浏览器自动打开
+  控制面板 → 填心跳间隔(默认 360)→ 点<b>开始</b>。</p>
+  <p><b>方式 B(纯黑窗口):</b>双击 <code>心跳自动领取.bat</code>,黑窗口开始滚日志。
+  <span class="badge orange">注意</span>两种方式<b>不要同时开</b>(会互相顶掉登录凭证)。</p>
+  <p>想先只跑一轮测试:</p>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --once</pre></div>
+  <p>首次运行窗口可能闪一下 Steam,结尾出现下面两行 stderr 噪音是<b>正常</b>的,忽略:</p>
+  <pre class="log"><span class="noise">Setting breakpad minidump AppID = 322330
+SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API loaded no]</span></pre>
+  <p><b>成功的标志 = 依次看到这 4 行:</b></p>
+  <pre class="log"><span class="expect">[..] ══════ Klei 心跳+自动领取 开始 ══════</span>
+[..] Steam 票据 240 字节  SteamID=7656119xxxxxxxxxx
+<span class="expect">[..] 登录完成 UserID=KU_****</span>
+<span class="expect">[..] 心跳正常，本轮无礼物（GiftReceived=False）</span></pre>
+  <div class="step"><input type="checkbox" data-step="first-run" id="ck-first">
+  <div><b>我已经双击跑起来,看到了启动+登录行</b></div></div>
+</section>
+
+<section id="s3">
+  <h2>第 3 章 · 读懂日志(15 行样例逐段注解)</h2>
+  <p>日志同时落盘在 <code>credentials\hb_auto_console.log</code>(控制面板另存数据库,见第 5 章)。</p>
+  <pre class="log">[..] ══════ Klei 心跳+自动领取 开始 ══════          <span class="noise">← 程序启动</span>
+[..] 间隔=360s  日志=…hb_auto_console.log
+[..] Steam 票据 240 字节  SteamID=7656119xxxxxxxxxx  <span class="noise">← 从 Steam 取票据成功</span>
+<span class="expect">[..] 登录完成 UserID=KU_****</span>                       <span class="noise">← 核心标志:登录成功</span>
+[..] ── 第 1 轮心跳（登录后 00:00:00）──
+<span class="expect">[..] 心跳正常，本轮无礼物（GiftReceived=False）</span>     <span class="noise">← 核心标志:挂机成功(多数轮长这样)</span>
+[..] ── 第 2 轮心跳（登录后 00:06:00）──
+[..] 🎁 心跳带礼物 Key=xxxx                       <span class="noise">← 服务端掉礼了</span>
+[..] 凭据回执 VerifyGiftingReceipt HTTP=200 … -&gt; OK
+[..] ★ 领取礼物 FEET_WAXWELL_WIZARD (123456)        <span class="noise">← 已入账(示例物品名)</span>
+[..] 本轮共领取 1 个礼物
+[..] Token 将到期，续期中…                        <span class="noise">← 挂到第 55 分钟左右出现</span>
+<span class="expect">[..] 已续期（KU_****），重新计时</span>                   <span class="noise">← 又能续 60 分钟</span></pre>
+  <p>这几行<b>看着吓人但其实正常</b>(脚本会自己恢复,不用管):</p>
+  <pre class="log">[..] 心跳鉴权失效 {"ErrorCode":"E_INVALID_TOKEN",…} → 续期/重登
+[..] 已重登（KU_****）                            <span class="noise">← 自动恢复完成</span>
+[..] 检测到未开礼物，自动清理 Context=3 队列        <span class="noise">← 在自动开积压的礼,不是错误</span></pre>
+  <div class="step"><input type="checkbox" data-step="know-log" id="ck-knowlog">
+  <div><b>我知道去哪看日志、哪些行正常、哪些行要处理</b></div></div>
+  <div class="step"><input type="checkbox" data-step="heartbeat-ok" id="ck-hbok">
+  <div><b>我亲眼看到了"心跳正常"这行(真正挂机成功的标志)</b></div></div>
+</section>
+
+<section id="s4">
+  <h2>第 4 章 · 礼物到账怎么确认</h2>
+  <p>收到礼物时日志/面板会出现:<code>🎁 心跳带礼物</code> → 回执 OK → <code>★ 领取礼物 物品名 (编号)</code>。
+  礼物是<b>皮肤</b>,进游戏在物品栏/衣柜就能看到。</p>
+  <p>随时手动查未开礼物队列:</p>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_open_gifts.py --dry-run</pre></div>
+  <p>控制面板的"礼物记录"卡片会展示全部已领记录(跨账号汇总、标注归属;每账号一个独立数据库,存于
+  <code>credentials\accounts\KU_****\</code>)。</p>
+  <details><summary>关于神秘箱(MYSTERYBOX)</summary>
+  <p>神秘箱不属于周礼心跳这套系统,默认<b>不动</b>。想开:控制面板/命令行加开箱开关,
+  命令行对应 <code>python klei_open_gifts.py --open-boxes</code>(走 OpenMysteryBox 接口)。</p></details>
+  <div class="callout callout--warn">📌 周礼 PC 上限 <b>8 个/周</b>,领满后约 24 小时不再掉。
+  控制面板会自动"领满即停"(暂停心跳,滑动 7 天窗口恢复后自动继续),无需手动管。</div>
+</section>
+
+<section id="s5">
+  <h2>第 5 章 · 日常挂机姿势</h2>
+  <table class="plain">
+  <tr><th>你想…</th><th>做法</th></tr>
+  <tr><td>每天挂机领礼</td><td>开着控制面板(推荐)或黑窗口就行;想开机自动挂,见第 7 章计划任务</td></tr>
+  <tr><td>停止</td><td>控制面板点"停止",或黑窗口 Ctrl+C / 直接关窗口</td></tr>
+  <tr><td>电脑睡眠</td><td>睡眠=脚本暂停(心跳不计时);长时间挂机请在电源设置里改"不休眠"</td></tr>
+  <tr><td>换电脑/搬文件夹</td><td>整个项目文件夹+dst 一起搬,登录态跟着走(路径都是相对脚本的)</td></tr>
+  <tr><td><b>换 Steam 账号</b></td><td><b>必须</b>先删 <code>credentials\.hb_auto_session.json</code>
+  和 <code>credentials\accounts\</code> 下旧账号目录,再切 Steam 重跑——否则脚本会一直
+  复用旧账号的续期链,白挂!</td></tr>
+  </table>
+  <div class="step"><input type="checkbox" data-step="know-stop" id="ck-knowstop">
+  <div><b>我知道怎么开始/停止/换账号了</b></div></div>
+</section>
+
+<section id="s6">
+  <h2>第 6 章 · 故障排查矩阵(13 条)</h2>
+  <p>遇到问题:先 Ctrl+F 搜日志关键词。控制面板用户:红色状态行 + 事件记录里同样能找到这些关键词。</p>
+  <table class="matrix">
+  <tr><th>#</th><th>现象(可搜索关键词)</th><th>原因</th><th>怎么办</th></tr>
+  <tr><td>1</td><td><code>'python' 不是内部或外部命令</code> / bat 闪退 <code>exit code 9009</code></td>
+      <td>未装 Python 或没进 PATH</td><td>装 64 位 Python 3.8+,勾选 Add to PATH,重开 cmd 验证</td></tr>
+  <tr><td>2</td><td><code>FileNotFoundError: 找不到 steam_api64.dll</code></td>
+      <td>DLL 不在三条自动查找路径上</td><td>项目与 dst 放同级;或 <code>--dll "完整路径"</code></td></tr>
+  <tr><td>3</td><td><code>[WinError 193] 不是有效的 Win32 应用程序</code></td>
+      <td>32 位 Python 加载 64 位 DLL</td><td>换 64 位 Python(第 1 章命令验证输出 64)</td></tr>
+  <tr><td>4</td><td><code>SteamAPI_Init 失败：Steam 客户端未运行或未登录？</code></td>
+      <td>Steam 没开/没登录/离线模式</td><td>启动 Steam 并登录后重跑;仍失败跑 <code>python _probe_ticket.py</code> 看 BLoggedOn</td></tr>
+  <tr><td>5</td><td><code>GetAuthSessionTicket 失败 (handle=0x0 len=0)</code></td>
+      <td>Steam 用户上下文偶发未就绪(已自动重试 5 次仍失败)</td><td>重启 Steam 等 30 秒重跑;反复出现跑 <code>_probe_ticket.py</code> 采集证据</td></tr>
+  <tr><td>6</td><td><code>LoginViaSteam 失败 HTTP=4xx</code> 或登录后立刻 E_INVALID_TOKEN</td>
+      <td>票据被拒:账号未拥有 DST / 家庭共享受限</td><td>确认该 Steam 账号库里有 DST;家庭共享换主号再试</td></tr>
+  <tr><td>7</td><td><code>心跳鉴权失效 …E_INVALID_TOKEN</code> 后跟 <code>已续期/已重登</code></td>
+      <td>token 到期,正常自愈</td><td>无需动作</td></tr>
+  <tr><td>8</td><td>每轮都 <code>已重登</code>,循环失效</td>
+      <td>时钟漂移 / 代理出口不稳 / Steam 反复掉线</td><td>Windows 时间同步;关 VPN 代理试;重启 Steam</td></tr>
+  <tr><td>9</td><td><code>检测到未开礼物，自动清理 Context=3 队列</code></td>
+      <td>历史积压未开礼,自动清理中</td><td>无需动作,清完自动恢复</td></tr>
+  <tr><td>10</td><td><code>SetItemOpened 失败</code> / <code>GetAllItems 失败</code></td>
+      <td>物品状态并发变化 / 物品服抖动</td><td>下轮自动重试;持续出现手动跑 <code>python klei_open_gifts.py</code></td></tr>
+  <tr><td>11</td><td><code>Tick 网络错误: NETERR: …</code></td>
+      <td>断网 / DNS / 防火墙拦截</td><td>检查网络后它会下轮自动重试;可用 <code>python klei_heartbeat.py --once</code> 复测</td></tr>
+  <tr><td>12</td><td>挂了几天零礼物</td>
+      <td>周礼节奏由服务端决定(约 2 小时一个,周上限 8);或电脑睡眠了</td>
+      <td>正常;查 <code>credentials\klei_gifts.log</code> 或面板礼物历史;确认没睡眠、没领满</td></tr>
+  <tr><td>13</td><td>换了 Steam 号,日志/面板还是旧 <code>KU_</code></td>
+      <td>旧 session 被复用,链式续期一直续<b>旧账号</b></td><td>删 <code>credentials\.hb_auto_session.json</code> 与 <code>credentials\accounts\</code> 旧目录,切号重跑</td></tr>
+  </table>
+  <div class="callout">把日志发给别人前,先抹掉 <code>KU_</code> 号与 SteamID(第 9 章有脱敏提示)。</div>
+</section>
+
+<section id="s7">
+  <h2>第 7 章 · 进阶用法</h2>
+  <details><summary>单独登录看凭证 / 续期</summary>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_steam_login.py</pre></div></details>
+  <details><summary>计划任务:每 30 分钟单轮心跳(不开常驻窗口)</summary>
+  <p>任务计划程序 → 创建基本任务 → 触发器"每 30 分钟" → 操作"启动程序":</p>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --once --no-logfile</pre></div>
+  <p>起始位置填本项目文件夹。注意:计划任务的 --once 模式每次要用有效 token,断链时会自动
+  重登(需 Steam 在线)。</p></details>
+  <details><summary>自定义心跳间隔(防风控:别低于 360)</summary>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --interval 600</pre></div>
+  <p>下限 30s 被强制抬回。社区实测缩短间隔可加快出礼(4-5h→1h),但属加速行为,风控自担。</p></details>
+  <details><summary>指定 DLL 完整路径</summary>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --dll "D:\你的路径\dst\steam_api64.dll"</pre></div></details>
+  <details><summary>单轮静默测试(不写日志文件)</summary>
+  <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --once --no-logfile</pre></div></details>
+  <details><summary>票据诊断工具 _probe_ticket.py</summary>
+  <p>拿不到票据时跑 <code>python _probe_ticket.py</code>,输出 Init/登录态/8 次重试明细;
+  DLL 自动按主脚本顺序查找。诊断结论对照第 6 章 4/5 号条目。</p></details>
+</section>
+
+<section id="s8">
+  <h2>第 8 章 · 多账号挂机(控制面板已支持)</h2>
+  <p><b>原理:</b>token 可链式续期(已实测 ≥2 跳),日常挂机只需纯 HTTP——<b>不需要沙盒、
+  不需要多开 Steam</b>。</p>
+  <p><b>添加一个新账号(人肉环节,每账号一次):</b>打开控制面板 → 把 Steam 客户端
+  <b>切换登录</b>到目标账号 → 点「添加账号」(面板代为登录并存档)→ 勾选启用 → 开始挂机。
+  之后该账号日常自动续期,不再需要 Steam 在场。</p>
+  <p><b>日常规则:</b>每轮按顺序处理所有勾选的账号(账号间错峰几秒);某账号领满 8/8 只暂停它自己;
+  账号不符(Steam 停在别的账号)也只暂停该账号——切好号后把该账号<b>关再开</b>勾选即重试。</p>
+  <p><b>链条断了:</b>把 Steam 切回该账号重新「添加」一次即可,其它账号不受影响。详见
+  <code>docs\多账号路线图.md</code> 与 <code>docs\情报-社区与SDK调研_2026-10-26.md</code>。</p>
+  <div class="callout callout--warn">多账号同 IP 请求频率的风控表现未知,默认节奏已错峰,请勿调快间隔。</div>
+</section>
+
+<section id="s9">
+  <h2>第 9 章 · FAQ 与安全须知</h2>
+  <details><summary>会被封号吗?</summary><p>未知。本工具只发与游戏完全相同的低频请求,但任何自动化
+  都违反服务条款的可能性存在,自担风险。别调快间隔、别多账号狂刷。</p></details>
+  <details><summary>能和游戏同时开吗?</summary><p>能。实测脚本运行期间开游戏 6+ 次无掉线无冲突
+  (Klei 会话追加式)。但<b>控制面板和黑窗口 bat 别同时开</b>(互相顶 token)。</p></details>
+  <details><summary>几天没礼物正常吗?</summary><p>正常。节奏约 2 小时一个、每周上限 8 个,
+  领满即停 24 小时+;面板会显示"本周 x/8"。</p></details>
+  <details><summary>Token 泄露有多危险?</summary><p>Token=你 Steam 账号的 Klei 登录凭证,
+  60 分钟自过期,但别外传;<code>credentials\</code> 整个目录(会话/日志/数据库)都不要发给别人、
+  不要提交到任何仓库(已被 .gitignore 排除)。</p></details>
+  <details><summary>日志分享前怎么脱敏?</summary><p>抹掉所有 <code>KU_…</code>、SteamID
+  (7656…开头数字)、<code>pcl-</code> 开头的 token 串。</p></details>
+  <details><summary>想核对领到的皮肤?</summary><p>皮肤即 Steam 物品,可用 Steam 公开库存
+  交叉验证:<code>steamcommunity.com/inventory/&lt;你的SteamID&gt;/322330/2</code>(浏览器直接开)。</p></details>
+</section>
+
+<footer>
+  基线:2026-10-26 实测(登录/Tick/自动重登/链式续期全部打通) · 适用当前 DST 版本<br>
+  深入文档:<code>README.md</code>(总览) · <code>docs\协议-登录与会话.md</code> ·
+  <code>docs\协议-心跳与礼物.md</code> · <code>docs\多账号路线图.md</code><br>
+  日志行若与实际不符,以脚本实际输出为准。
+</footer>
+
+</main>
+
+<noscript><p style="text-align:center;color:#9A6700">页面可正常阅读;复制按钮与进度勾选需要启用 JavaScript。</p></noscript>
+
+<script>
+var KEY='klei_guide_progress_v1';
+var boxes=[].slice.call(document.querySelectorAll('input[type=checkbox][data-step]'));
+var TOTAL=boxes.length;
+function saveState(){
+  var checked=boxes.filter(function(b){return b.checked}).map(function(b){return b.dataset.step});
+  try{localStorage.setItem(KEY,JSON.stringify({checked:checked,updated:new Date().toISOString()}))}catch(e){}
+}
+function render(){
+  var n=boxes.filter(function(b){return b.checked}).length;
+  document.getElementById('pbar').style.width=(n/TOTAL*100)+'%';
+  document.getElementById('ptext').textContent=n+'/'+TOTAL+' 步';
+}
+function loadState(){
+  var s={};
+  try{s=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  (s.checked||[]).forEach(function(k){
+    var b=document.querySelector('input[data-step="'+k+'"]');
+    if(b)b.checked=true;
+  });
+}
+boxes.forEach(function(b){b.addEventListener('change',function(){saveState();render()})});
+document.getElementById('resetBtn').addEventListener('click',function(){
+  if(!confirm('清空全部勾选进度?'))return;
+  boxes.forEach(function(b){b.checked=false});
+  try{localStorage.removeItem(KEY)}catch(e){}
+  render();
+});
+document.querySelectorAll('.copybtn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var pre=btn.parentNode.querySelector('pre');
+    var text=pre?pre.textContent:'';
+    function done(ok){
+      btn.textContent=ok?'已复制 ✓':'复制失败';
+      setTimeout(function(){btn.textContent='复制'},1500);
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){done(true)},function(){fallback()});
+    }else{fallback();}
+    function fallback(){
+      var ta=document.createElement('textarea');
+      ta.value=text;document.body.appendChild(ta);ta.select();
+      var ok=false;try{ok=document.execCommand('copy')}catch(e){}
+      document.body.removeChild(ta);done(ok);
+    }
+  });
+});
+loadState();render();
+</script>
+</body>
+</html>

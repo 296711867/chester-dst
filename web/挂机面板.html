@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chester · 饥荒礼物箱</title>
+<link rel="icon" type="image/png" href="/assets/icons/gift.png">
+<script>try{var s=localStorage.getItem("klei_panel_skin");if(["parchment","dark","winter","forge","lunar","forest"].indexOf(s)>=0)document.documentElement.setAttribute("data-theme",s)}catch(e){}</script>
+<style>
+@font-face{font-family:"Amarante";
+  src:url("/assets/fonts/amarante.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:swap}
+/* ===== 皮肤系统:默认=饥荒官网明亮;html[data-theme] 切换 ===== */
+:root{
+  --dur:180ms; --blur:14px;
+  --mono:Consolas,"Courier New",monospace;
+  --display:"Amarante","Ink Free","KaiTi","STKaiti","Segoe UI","Microsoft YaHei",sans-serif;
+  --bg:#f3ecd9; --glow1:rgba(194,90,30,.10); --glow2:rgba(110,80,40,.08);
+  --card:rgba(255,251,240,.82); --card-solid:#fffaf0; --card-border:rgba(120,90,50,.22);
+  --muted-bg:#eadfc4; --line:#b3a279; --th-bg:#e9dcc0; --zebra:rgba(120,90,50,.05);
+  --hover:rgba(194,90,30,.08);
+  --text:#3b2f23; --text-2:#6b5b45;
+  --accent:#a84a12; --accent-ink:#ffffff; --accent-soft:rgba(168,74,18,.14);
+  --ok:#2e7d32; --red:#c0392b; --err-fg:#b3261e; --red-soft:rgba(192,57,43,.12);
+  --amber:#7d5b00; --amber-soft:rgba(154,103,0,.14);
+  --box-fg:#5d3a83; --box-bg:rgba(106,67,144,.12);
+  --shadow:rgba(80,60,30,.18);
+}
+html[data-theme="dark"]{
+  --bg:#0F172A; --glow1:rgba(34,197,94,.10); --glow2:rgba(59,130,246,.12);
+  --card:rgba(27,35,54,.72); --card-solid:#1B2336; --card-border:rgba(255,255,255,.16);
+  --muted-bg:#272F42; --line:#475569; --th-bg:#202A40; --zebra:rgba(255,255,255,.03);
+  --hover:rgba(34,197,94,.07);
+  --text:#F8FAFC; --text-2:#94A3B8;
+  --accent:#22C55E; --accent-ink:#052E16; --accent-soft:rgba(34,197,94,.15);
+  --ok:#22C55E; --red:#EF4444; --err-fg:#F87171; --red-soft:rgba(239,68,68,.15);
+  --amber:#EAB308; --amber-soft:rgba(234,179,8,.15);
+  --box-fg:#c084fc; --box-bg:rgba(147,51,234,.18);
+  --shadow:rgba(0,0,0,.25);
+}
+html[data-theme="winter"]{
+  --bg:#0e1a2e; --glow1:rgba(79,195,247,.10); --glow2:rgba(142,36,170,.10);
+  --card:rgba(22,36,58,.80); --card-solid:#16243A; --card-border:rgba(120,170,230,.22);
+  --muted-bg:#1a2b47; --line:#33507A; --th-bg:#16273F; --zebra:rgba(140,180,230,.04);
+  --hover:rgba(79,195,247,.08);
+  --text:#e8f0fa; --text-2:#8fa8c7;
+  --accent:#4fc3f7; --accent-ink:#06283A; --accent-soft:rgba(79,195,247,.15);
+  --ok:#4fc3f7; --red:#d32f2f; --err-fg:#ff8a80; --red-soft:rgba(239,83,80,.15);
+  --amber:#ffb74d; --amber-soft:rgba(255,183,77,.15);
+  --box-fg:#b39ddb; --box-bg:rgba(179,157,219,.15);
+  --shadow:rgba(0,0,0,.3);
+}
+html[data-theme="forge"]{
+  --bg:#1d0f0d; --glow1:rgba(255,112,67,.12); --glow2:rgba(255,171,64,.08);
+  --card:rgba(48,22,18,.82); --card-solid:#301216; --card-border:rgba(255,140,90,.22);
+  --muted-bg:#33201B; --line:#6B352A; --th-bg:#2A1712; --zebra:rgba(255,140,90,.04);
+  --hover:rgba(255,112,67,.08);
+  --text:#fbe9e2; --text-2:#c9a08f;
+  --accent:#ff7043; --accent-ink:#3A0F05; --accent-soft:rgba(255,112,67,.16);
+  --ok:#ff8a65; --red:#d32f2f; --err-fg:#ff8a80; --red-soft:rgba(255,82,82,.16);
+  --amber:#ffa726; --amber-soft:rgba(255,167,38,.15);
+  --box-fg:#ce93d8; --box-bg:rgba(206,147,216,.15);
+  --shadow:rgba(0,0,0,.35);
+}
+html[data-theme="lunar"]{
+  --bg:#eef4f8; --glow1:rgba(61,110,158,.10); --glow2:rgba(160,140,220,.10);
+  --card:rgba(255,255,255,.90); --card-solid:#ffffff; --card-border:rgba(60,100,140,.20);
+  --muted-bg:#dfeaf2; --line:#b0c4d4; --th-bg:#e0ebf3; --zebra:rgba(60,100,140,.04);
+  --hover:rgba(61,110,158,.08);
+  --text:#24384a; --text-2:#486479;
+  --accent:#356392; --accent-ink:#ffffff; --accent-soft:rgba(53,99,146,.14);
+  --ok:#2e6e4e; --red:#c62828; --err-fg:#b3261e; --red-soft:rgba(198,40,40,.11);
+  --amber:#7d5a00; --amber-soft:rgba(125,90,0,.13);
+  --box-fg:#5e35b1; --box-bg:rgba(94,53,177,.11);
+  --shadow:rgba(40,70,100,.15);
+}
+html[data-theme="forest"]{
+  --bg:#eff5ea; --glow1:rgba(61,122,55,.10); --glow2:rgba(140,110,50,.08);
+  --card:rgba(253,255,250,.90); --card-solid:#fdfffa; --card-border:rgba(70,110,50,.20);
+  --muted-bg:#dfe9d8; --line:#aebfa2; --th-bg:#dfe9d5; --zebra:rgba(70,110,50,.04);
+  --hover:rgba(61,122,55,.08);
+  --text:#2b3a26; --text-2:#57694d;
+  --accent:#35682f; --accent-ink:#ffffff; --accent-soft:rgba(53,104,47,.14);
+  --ok:#2e7d32; --red:#b3413a; --err-fg:#a02c25; --red-soft:rgba(179,65,58,.11);
+  --amber:#7d5b00; --amber-soft:rgba(125,91,0,.13);
+  --box-fg:#6a4390; --box-bg:rgba(106,67,144,.11);
+  --shadow:rgba(50,80,40,.15);
+}
+/* ===== 布局与组件(全部取色于皮肤变量) ===== */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;overflow:hidden;color:var(--text);
+  font:15px/1.5 system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
+  background:radial-gradient(720px 480px at 12% -8%,var(--glow1),transparent 60%),
+             radial-gradient(820px 560px at 96% 104%,var(--glow2),transparent 60%),
+             var(--bg)}
+.app{height:100vh;padding:16px;display:grid;gap:14px;
+  grid-template-columns:340px minmax(0,1fr);grid-template-rows:56px minmax(0,1fr)}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:8px 18px;flex-wrap:nowrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand img{height:32px}
+.brand b{font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.04em;white-space:nowrap}
+.col-l{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:14px;min-height:0}
+.col-r{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;min-height:0}
+.card{background:var(--card);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+  border:1px solid var(--card-border);border-radius:14px;
+  padding:12px 16px;box-shadow:0 8px 24px var(--shadow);min-height:0;
+  display:flex;flex-direction:column}
+@supports not (backdrop-filter:blur(1px)){.card{background:var(--card-solid)}}
+.card.topbar{flex-direction:row;align-items:center}
+.card h2{font-family:var(--display);font-size:15px;margin:0 0 10px;color:var(--text-2);
+  font-weight:400;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+.card h2 .hicon{width:20px;height:20px;flex:none}
+.card h2 svg{width:14px;height:14px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+button{cursor:pointer;font-family:inherit}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;
+  border-radius:10px;
+  padding:8px 16px;font-size:14px;font-weight:600;
+  transition:filter var(--dur),opacity var(--dur)}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--line)}
+.btn-ghost:hover{color:var(--text);border-color:var(--text-2)}
+.btn:hover:not(:disabled){filter:brightness(1.08)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-sm{padding:5px 10px;font-size:12.5px;border-radius:8px;white-space:nowrap}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+  padding:3px 14px;font-weight:600;font-size:13px;white-space:nowrap}
+.badge.run{background:var(--accent-soft);color:var(--accent)}
+.badge.idle{background:var(--muted-bg);color:var(--text-2)}
+.badge.err{background:var(--red-soft);color:var(--err-fg)}
+.badge.cap{background:var(--amber-soft);color:var(--amber)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.dot.run{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s infinite}
+.dot.cap{background:var(--amber)}
+.dot.need{background:transparent;border:2px solid var(--err-fg)}
+.dot.paused{background:transparent;border:2px solid var(--amber)}
+.dot.idle{background:var(--text-2)}
+.dot.off{background:var(--text-2)}
+@keyframes pulse{50%{box-shadow:0 0 12px var(--accent)}}
+.tgl{position:relative;width:36px;height:20px;flex:none;cursor:pointer}
+.tgl input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.tgl i{position:absolute;inset:0;pointer-events:none;background:var(--muted-bg);
+  border:1px solid var(--line);border-radius:999px;transition:background var(--dur)}
+.tgl i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:50%;background:var(--text-2);transition:transform var(--dur)}
+.tgl input:checked+i{background:var(--accent);border-color:var(--accent)}
+.tgl input:checked+i::after{transform:translateX(16px);background:var(--accent-ink)}
+.ck{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex:none}
+input[type=number],input[type=text],select{background:var(--muted-bg);border:1px solid var(--line);
+  color:var(--text);border-radius:8px;padding:6px 9px;font-size:14px;font-family:inherit}
+input[type=number]{width:84px}
+input[type=text]{width:130px}
+label{color:var(--text-2);font-size:13px}
+#langBtn{min-width:52px;font-family:var(--display)}
+.acct-list{flex:1;min-height:0;overflow:auto;margin:0 -6px;padding:0 6px}
+.acct{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto;
+  gap:2px 10px;align-items:center;border:1px solid var(--line);border-radius:10px;
+  padding:8px 10px;margin-bottom:8px;cursor:pointer;transition:border-color var(--dur),background var(--dur)}
+.acct:hover{border-color:var(--text-2);background:var(--hover)}
+.acct.pending{opacity:.55}
+.acct .name{font-weight:600;font-size:14px;display:flex;gap:8px;align-items:center;min-width:0}
+.acct .name .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct .ku{grid-column:2;font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
+.acct .stat{grid-row:1;grid-column:3;display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--text-2);white-space:nowrap}
+.acct .metrics{grid-column:2 / span 2;display:flex;align-items:center;gap:8px;
+  font-size:12px;color:var(--text-2);font-family:var(--mono)}
+.acct .rowerr{grid-column:1/-1;color:var(--err-fg);font-size:12px;display:none}
+.acct.off{opacity:.5}
+.micro{width:56px;height:6px;border-radius:3px;background:var(--muted-bg);overflow:hidden;flex:none}
+.micro>i{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .4s}
+.micro.near>i{background:linear-gradient(90deg,var(--accent),var(--amber))}
+.acct-empty{color:var(--text-2);font-size:13px;text-align:center;padding:24px 0}
+.setrow{display:flex;align-items:center;gap:10px;padding:6px 0}
+.setrow .t{font-size:13.5px;flex:1;display:flex;align-items:center;gap:8px}
+.setrow .t img{width:18px;height:18px}
+.setrow .hint{font-size:11.5px;color:var(--text-2)}
+.setfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
+#set-note{font-size:12.5px;min-width:60px}
+.timing{font-size:11px;color:var(--text-2);margin-top:6px}
+.prog-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;align-items:center}
+.prog .k{font-size:12px;color:var(--text-2);margin-bottom:4px}
+.prog .v{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
+.prog .v small{font-size:13px;color:var(--text-2);font-family:system-ui,"Microsoft YaHei",sans-serif}
+.bigbar{height:12px;border-radius:6px;background:var(--muted-bg);overflow:hidden;margin-top:6px}
+.bigbar>i{display:block;height:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--accent) 55%,var(--amber));transition:width .4s}
+.eta{color:var(--accent);font-size:13px;font-weight:600}
+.ref{font-size:12px;color:var(--text-2)}
+.chip{display:inline-block;background:var(--amber-soft);color:var(--amber);
+  border-radius:999px;padding:1px 10px;font-size:12.5px;font-weight:600}
+.tblwrap{flex:1;min-height:0;overflow:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:var(--th-bg);color:var(--text-2);text-align:left;
+  padding:6px 10px;border-bottom:1px solid var(--line);font-size:12px;z-index:2}
+td{padding:6px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+tbody tr:nth-child(even){background:var(--zebra)}
+tbody tr:hover{background:var(--hover)}
+.ok{color:var(--ok);font-weight:600}.fail{color:var(--err-fg);font-weight:600}
+.muted{color:var(--text-2)}
+.gift-name{font-weight:600}
+.rawcode{font-size:11px;font-family:var(--mono);color:var(--text-2)}
+.src{display:inline-flex;align-items:center;gap:5px;border-radius:999px;
+  padding:1px 9px;font-size:12px;font-weight:600}
+.src img{width:13px;height:13px}
+.src.tick{background:var(--accent-soft);color:var(--accent)}
+.src.daily{background:var(--amber-soft);color:var(--amber)}
+.src.box{background:var(--box-bg);color:var(--box-fg)}
+.acc-tag{font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
+.note{margin-top:8px;font-size:12.5px;color:var(--amber);min-height:1.1em}
+.logs summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;
+  color:var(--text-2);font-size:13px;font-weight:600;user-select:none}
+.logs summary::-webkit-details-marker{display:none}
+.logs summary svg{width:14px;height:14px;transition:transform var(--dur)}
+.logs[open] summary svg{transform:rotate(180deg)}
+.logs summary .cnt{font-family:var(--mono);font-weight:400;font-size:12px}
+.logtabs{display:flex;gap:6px;margin:8px 0}
+.logtabs .btn-sm.active{color:var(--text);border-color:var(--accent)}
+.logs .tblwrap{max-height:200px}
+footer{font-size:11.5px;color:var(--text-2);text-align:center;padding:2px 0 0}
+@media (max-width:900px){
+  body{overflow:auto}
+  .app{height:auto;grid-template-columns:1fr;grid-template-rows:auto}
+  .col-l,.col-r{grid-template-rows:none}
+  .topbar{flex-wrap:wrap;height:auto}
+  .acct-list{max-height:320px}
+  .prog-grid{grid-template-columns:1fr}
+  .tblwrap{max-height:320px}
+}
+body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .35s ease,color .35s ease,border-color .35s ease}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="app">
+
+<header class="card topbar">
+  <span class="brand"><img src="/assets/icons/gift.png" alt="">
+  <b data-i18n="brand">Chester · 饥荒礼物箱</b></span>
+  <span class="badge idle" id="badge">…</span>
+  <span class="muted" style="font-size:13px" id="summary">—</span>
+  <span style="flex:1"></span>
+  <label><span data-i18n="interval">间隔</span>
+    <input type="number" id="interval" min="30" max="3600" step="30" value="360">
+    <span data-i18n="sec">秒</span></label>
+  <button class="btn btn-primary" id="startBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7 4 20 12 7 20 7 4"/></svg>
+    <span data-i18n="start">开始</span></button>
+  <button class="btn btn-danger" id="stopBtn" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+    <span data-i18n="stop">停止</span></button>
+  <label><span data-i18n="skin">皮肤</span>
+    <select id="skinSel">
+      <option value="parchment" data-i18n="skin_parchment"></option>
+      <option value="dark" data-i18n="skin_dark"></option>
+      <option value="winter" data-i18n="skin_winter"></option>
+      <option value="forge" data-i18n="skin_forge"></option>
+      <option value="lunar" data-i18n="skin_lunar"></option>
+      <option value="forest" data-i18n="skin_forest"></option>
+    </select></label>
+    <button class="btn btn-ghost" id="langBtn" title="切换语言 / Switch language">EN</button>
+</header>
+
+<div class="col-l">
+  <section class="card">
+    <h2><img class="hicon" src="/assets/icons/wilson.png" alt="">
+      <span data-i18n="accounts">账号</span> <span id="acct-count"></span>
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm" id="allBtn" data-i18n-t="all_none">全选</button>
+      <button class="btn btn-ghost btn-sm" id="addBtn" data-i18n-t="add_account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+        添加账号</button>
+    </h2>
+    <div class="acct-list" id="acctList"><div class="acct-empty" data-i18n="loading"></div></div>
+    <div class="timing" id="acct-hint" data-i18n="acct_hint"></div>
+  </section>
+
+  <section class="card">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span data-i18n="settings">设置</span>
+    </h2>
+    <div class="setrow"><label class="tgl"><input type="checkbox" id="set-daily" data-i18n-aria="daily" checked><i></i></label>
+      <span class="t"><span data-i18n="daily">每日登录礼</span>
+      <span class="hint" data-i18n="daily_hint"></span></span></div>
+    <div class="setrow"><label class="tgl"><input type="checkbox" id="set-capstop" data-i18n-aria="capstop" checked><i></i></label>
+      <span class="t"><span data-i18n="capstop">领满即停</span>
+      <span class="hint" data-i18n="capstop_hint"></span></span></div>
+    <div class="setrow"><label class="tgl"><input type="checkbox" id="set-autobox" data-i18n-aria="autobox"><i></i></label>
+      <span class="t"><img src="/assets/icons/mysterybox.png" alt="">
+      <span data-i18n="autobox">自动开神秘箱</span>
+      <span class="hint" style="color:var(--amber)" data-i18n="autobox_hint"></span></span></div>
+    <div class="setrow"><label for="set-desc" data-i18n="desc">主机描述</label>
+      <input type="text" id="set-desc" maxlength="100" placeholder="klei_panel" style="margin-left:auto"></div>
+    <div class="setfoot">
+      <span class="timing" data-i18n="timing"></span>
+      <span><span id="set-note" class="muted"></span>
+      <button class="btn btn-primary btn-sm" id="saveSetBtn" data-i18n="save">保存设置</button></span>
+    </div>
+  </section>
+</div>
+
+<div class="col-r">
+  <section class="card">
+    <div class="prog-grid">
+      <div class="prog">
+        <div class="k" data-i18n="weekly_k"></div>
+        <div class="v"><span id="week-sum">0</span><small> / <span id="week-cap">0</span></small></div>
+        <div class="bigbar"><i id="weekfill" style="width:0%"></i></div>
+      </div>
+      <div class="prog">
+        <div class="k"><img src="/assets/icons/gift.png" alt="" style="width:16px;height:16px;vertical-align:-3px">
+          <span data-i18n="today_k"></span></div>
+        <div class="v" id="today-sum">0</div>
+        <div class="ref" id="etaref"></div>
+      </div>
+      <div class="prog">
+        <div class="k" data-i18n="ticks_k"></div>
+        <div class="v"><span id="st-ok">0</span><small> <span data-i18n="ok">成功</span> · </small><span id="st-fail" style="color:var(--err-fg)">0</span><small> <span data-i18n="failed">失败</span></small></div>
+        <div class="ref"><span data-i18n="uptime"></span> <span id="st-uptime">—</span> · <span data-i18n="last"></span> <span id="st-last">—</span></div>
+      </div>
+    </div>
+    <div class="note" id="note"></div>
+  </section>
+
+  <section class="card" style="min-height:0">
+    <h2><img class="hicon" src="/assets/icons/gift.png" alt="">
+      <span data-i18n="gifts">礼物记录</span>
+      <span style="flex:1"></span>
+      <span class="muted" style="font-size:12px" data-i18n="gifts_sub"></span>
+    </h2>
+    <div class="tblwrap"><table id="giftsTbl">
+      <tr><th data-i18n="th_time"></th><th data-i18n="th_gift"></th><th data-i18n="th_id"></th>
+          <th data-i18n="th_source"></th><th data-i18n="th_account"></th></tr>
+    </table></div>
+  </section>
+
+  <details class="card logs" id="logsCard">
+    <summary>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <span data-i18n="logs"></span>
+      <span class="cnt"><span data-i18n="cur_acct"></span> · <span data-i18n="ticks2"></span> <span id="hb-cnt">—</span> · <span data-i18n="events"></span> <span id="ev-cnt">—</span></span>
+      <span style="flex:1"></span>
+    </summary>
+    <div class="logtabs">
+      <button class="btn btn-ghost btn-sm active" data-log="hb" data-i18n="tab_hb"></button>
+      <button class="btn btn-ghost btn-sm" data-log="ev" data-i18n="tab_ev"></button>
+    </div>
+    <div class="tblwrap" id="logwrap">
+      <table id="hbTbl"><tr><th data-i18n="th_time"></th><th>HTTP</th><th data-i18n="th_result"></th></tr></table>
+      <table id="evTbl" style="display:none"><tr><th data-i18n="th_time"></th><th data-i18n="th_kind"></th><th data-i18n="th_detail"></th></tr></table>
+    </div>
+  </details>
+
+  <footer>
+    <span data-i18n="footer1"></span><br>
+    <span data-i18n="footer2"></span>
+  </footer>
+</div>
+
+</div>
+<script>
+"use strict";
+/* ---------- utils ---------- */
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+
+/* ---------- i18n ---------- */
+var I18N={
+zh:{
+  brand:"Chester · 饥荒礼物箱", interval:"间隔", sec:"秒", start:"开始", stop:"停止",
+  accounts:"账号", all_none:"全选", add_account:"添加账号",
+  acct_hint:"添加 = 人肉环节:先把 Steam 客户端切换登录到目标账号,再点「添加账号」。勾选=参与挂机,下一轮生效。",
+  acct_empty:"还没有账号。先把 Steam 切到目标账号,再点「添加账号」。",
+  loading:"加载中…",
+  st_ok:"运行", st_capped:"领满", st_paused:"已暂停", st_need:"待登录",
+  st_disabled:"未启用", st_idle:"待机",
+  settings:"设置", daily:"每日登录礼", daily_hint:"每账号每天一次",
+  capstop:"领满即停", capstop_hint:"8/周,到顶暂停该账号心跳",
+  autobox:"自动开神秘箱", autobox_hint:"⚠ 一次性消耗,不可恢复",
+  desc:"主机描述",
+  timing:"除描述下次登录生效外,其余保存后下一轮心跳生效",
+  save:"保存设置", saving:"保存中…", saved:"已保存 ✓", save_fail:"保存失败,请重试",
+  weekly_k:"本周周礼(启用账号合计)", today_k:"今日礼物", ticks_k:"会话心跳",
+  ok:"成功", failed:"失败", uptime:"已运行", last:"最近",
+  ref_line:"参考:社区经验约 2 小时出 1 个",
+  eta_line:"⏳ 领满暂停,预计恢复:", eta_hours:"(约 ", eta_hours2:" 小时后)",
+  gifts:"礼物记录", gifts_sub:"跨账号 · 最近 50 条",
+  th_time:"时间", th_gift:"礼物", th_id:"编号", th_source:"来源", th_account:"账号",
+  th_result:"结果", th_kind:"类型", th_detail:"详情",
+  src_tick:"周礼", src_daily:"每日礼", src_box:"神秘箱",
+  logs:"运行日志", cur_acct:"当前账号", ticks2:"心跳", events:"事件",
+  tab_hb:"心跳流水", tab_ev:"事件",
+  footer1:"Chester 是你的随行礼物箱 · 详细教程见根目录 挂机指南.html · 只监听 127.0.0.1,不含任何 token",
+  footer2:"与「心跳自动领取.bat」不要同时运行",
+  badge_run:"运行中", badge_capped:"领满已暂停", badge_err:"出错已停",
+  badge_stopped:"已停止", badge_idle:"未开始",
+  enabled_n:" 账号启用", week:"本周 ", today:"今日 ", processing:"处理中:", waiting:" 个待处理",
+  no_records:"暂无记录",
+  remove_confirm:"移除 %s?(数据目录保留,可重新添加)",
+  remove_fail:"移除失败", remove_account:"移除该账号", toggle_fail:"切换失败", srv_down:"操作失败:面板服务无响应",
+  last_ok:"正常", hours_h:"小时",
+  skin:"皮肤", skin_parchment:"饥荒官网", skin_dark:"暗夜营地",
+  skin_winter:"冬季盛宴", skin_forge:"熔炉", skin_lunar:"月色", skin_forest:"常青森林"
+},
+en:{
+  brand:"Chester · DST Gift Panel", interval:"Interval", sec:"s", start:"Start", stop:"Stop",
+  accounts:"Accounts", all_none:"All", add_account:"Add account",
+  acct_hint:"Adding = one manual step: switch Steam login to the target account, then click Add. Checked = farming, applies next round.",
+  acct_empty:"No accounts yet. Switch Steam to the target account, then click Add.",
+  loading:"Loading…",
+  st_ok:"Running", st_capped:"Capped", st_paused:"Paused", st_need:"Login",
+  st_disabled:"Off", st_idle:"Idle",
+  settings:"Settings", daily:"Daily gift", daily_hint:"once a day per account",
+  capstop:"Cap stop", capstop_hint:"8/week, pauses that account",
+  autobox:"Mystery boxes", autobox_hint:"⚠ consumed on open, irreversible",
+  desc:"Host desc",
+  timing:"Except host desc (next login), settings apply from the next round",
+  save:"Save", saving:"Saving…", saved:"Saved ✓", save_fail:"Save failed, retry",
+  weekly_k:"Weekly gifts (enabled total)", today_k:"Today", ticks_k:"Session ticks",
+  ok:"ok", failed:"failed", uptime:"Uptime", last:"Last",
+  ref_line:"Reference: ~2 hours per gift (community experience)",
+  eta_line:"Capped — resumes:", eta_hours:"(~", eta_hours2:"h later)",
+  gifts:"Gift log", gifts_sub:"cross-account · last 50",
+  th_time:"Time", th_gift:"Gift", th_id:"ID", th_source:"Source", th_account:"Account",
+  th_result:"Result", th_kind:"Kind", th_detail:"Detail",
+  src_tick:"Weekly", src_daily:"Daily", src_box:"Box",
+  logs:"Logs", cur_acct:"current acct", ticks2:"ticks", events:"events",
+  tab_hb:"Heartbeats", tab_ev:"Events",
+  footer1:"Full guide: 挂机指南.html in project root · Panel listens on 127.0.0.1 only, contains no tokens",
+  footer2:"Do not run together with the console-mode .bat",
+  badge_run:"Running", badge_capped:"Capped, paused", badge_err:"Error",
+  badge_stopped:"Stopped", badge_idle:"Not started",
+  enabled_n:" enabled", week:"Week ", today:"Today ", processing:" · now:", waiting:" paused",
+  no_records:"No records yet",
+  remove_confirm:"Remove %s? (data folder is kept, can re-add)",
+  remove_fail:"Remove failed", remove_account:"Remove account", toggle_fail:"Toggle failed", srv_down:"Failed: panel service unreachable",
+  last_ok:"ok", hours_h:"h",
+  skin:"Skin", skin_parchment:"Official", skin_dark:"Dark camp",
+  skin_winter:"Winter's Feast", skin_forge:"The Forge", skin_lunar:"Lunar", skin_forest:"Evergreen"
+}};
+var lang="zh",skin="parchment";
+try{lang=localStorage.getItem("klei_panel_lang")||"zh"}catch(e){}
+try{skin=localStorage.getItem("klei_panel_skin")||"parchment"}catch(e){}
+if(!["parchment","dark","winter","forge","lunar","forest"].includes(skin))skin="parchment";
+function t(k){var d=I18N[lang]||I18N.zh;return (d&&d[k])!=null?d[k]:(I18N.zh[k]!=null?I18N.zh[k]:k);}
+function applyLang(){
+  document.documentElement.lang=lang==="zh"?"zh-CN":"en";
+  document.title=t("brand");
+  document.querySelectorAll("[data-i18n]").forEach(function(el){el.textContent=t(el.getAttribute("data-i18n"))});
+  document.querySelectorAll("[data-i18n-aria]").forEach(function(el){
+    el.setAttribute("aria-label",t(el.getAttribute("data-i18n-aria")))});
+  document.querySelectorAll("[data-i18n-t]").forEach(function(el){
+    var v=t(el.getAttribute("data-i18n-t"));
+    var keep=el.querySelector("svg");
+    el.textContent=v;
+    if(keep)el.insertBefore(keep,el.firstChild);
+  });
+  $("langBtn").textContent=lang==="zh"?"EN":"中文";
+  document.documentElement.setAttribute("data-theme",skin);
+  $("skinSel").value=skin;
+  lastAccounts="";              // 语言切换强制重绘账号列表与表格
+  renderAccounts(lastAccountsData||[], true);
+  refreshStatus();refreshData();refreshLogs();
+}
+$("skinSel").addEventListener("change",function(){
+  skin=this.value||"parchment";
+  try{localStorage.setItem("klei_panel_skin",skin)}catch(e){}
+  document.documentElement.setAttribute("data-theme",skin);
+});
+$("langBtn").addEventListener("click",function(){
+  lang=lang==="zh"?"en":"zh";
+  try{localStorage.setItem("klei_panel_lang",lang)}catch(e){}
+  applyLang();
+});
+
+/* ---------- utils(cont) ---------- */
+function fmtTs(ts){if(!ts)return"—";var d=new Date(ts*1000);
+  function p(n){return (n<10?"0":"")+n}
+  return p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())}
+function fmtDur(s){s=Math.max(0,s|0);var h=(s/3600)|0,m=((s%3600)/60)|0,x=s%60;
+  return (h?h+(lang==="zh"?"小时":"h"):"")+(m?m+(lang==="zh"?"分":"m"):"")+x+(lang==="zh"?"秒":"s")}
+function fetchJSON(path,opts){
+  return fetch(path,opts?{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(opts)}:undefined).then(function(r){return r.json()});
+}
+function setRows(tbl,rows,cols){
+  var html="<tr>"+cols.map(function(c){return "<th>"+esc(c.h)+"</th>"}).join("")+"</tr>";
+  (rows||[]).forEach(function(r){html+="<tr>"+cols.map(function(c){
+    return "<td"+(c.num?" class='num'":"")+">"+(c.html?c.f(r):esc(c.f(r)))+"</td>"}).join("")+"</tr>"});
+  if(!rows||!rows.length)html+="<tr><td colspan='"+cols.length+"' class='muted'>"+esc(t("no_records"))+"</td></tr>";
+  tbl.innerHTML=html;
+}
+var STATUS_META={
+  ok:{cls:"run",key:"st_ok"},capped:{cls:"cap",key:"st_capped"},
+  paused:{cls:"paused",key:"st_paused"},needs_login:{cls:"need",key:"st_need"},
+  disabled:{cls:"off",key:"st_disabled"},idle:{cls:"idle",key:"st_idle"}};
+var lastAccounts="";
+var lastAccountsData=null;
+
+function renderAccounts(accounts,force){
+  var sig=lang+"|"+JSON.stringify((accounts||[]).map(function(a){
+    return [a.userid,a.alias,a.enabled,a.status,a.weekly,a.today]}));
+  if(sig===lastAccounts&&!force)return;
+  lastAccounts=sig;
+  var box=$("acctList");
+  if(!accounts||!accounts.length){
+    box.innerHTML="<div class='acct-empty'>"+esc(t("acct_empty"))+"</div>";
+    $("acct-count").textContent="";return;
+  }
+  $("acct-count").textContent="("+accounts.length+")";
+  var html="";
+  accounts.forEach(function(a){
+    var meta=STATUS_META[a.status]||STATUS_META.idle;
+    var pct=Math.min(100,(a.weekly/8)*100);
+    html+="<div class='acct"+(a.enabled?"":" off")+"' data-uid='"+esc(a.userid)+"'>"+
+      "<input type='checkbox' class='ck' aria-label='"+esc((a.alias||a.userid))+"'"+(a.enabled?" checked":"")+">"+
+      "<span class='name'><span class='nm'>"+esc(a.alias||a.userid)+"</span></span>"+
+      "<span class='stat'><span class='dot "+meta.cls+"'></span>"+esc(t(meta.key))+"</span>"+
+      "<span class='ku'>"+esc(a.userid)+"</span>"+
+      "<span class='metrics'><span class='micro"+(a.weekly>=6?" near":"")+"'><i style='width:"+pct+"%'></i></span>"+
+      a.weekly+"/8 · "+t("today")+a.today+
+      "<svg viewBox='0 0 24 24' style='width:12px;height:12px;cursor:pointer;color:var(--text-2)' class='rm' role='img' "+
+        "fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/></svg></span>"+
+      "<span class='rowerr'></span></div>";
+  });
+  box.innerHTML=html;
+  box.querySelectorAll(".acct").forEach(function(row){
+    var uid=row.dataset.uid;
+    row.querySelector(".ck").addEventListener("change",function(ev){
+      ev.stopPropagation();toggleAccount(uid,ev.target.checked,row);
+    });
+    row.addEventListener("click",function(ev){
+      if(ev.target.closest(".ck")||ev.target.closest(".rm"))return;
+      var ck=row.querySelector(".ck");ck.checked=!ck.checked;
+      toggleAccount(uid,ck.checked,row);
+    });
+    row.querySelector(".rm").setAttribute("aria-label",t("remove_account"));
+    row.querySelector(".rm").addEventListener("click",function(ev){
+      ev.stopPropagation();
+      var a=(lastAccountsData||[]).find(function(x){return x.userid===uid});
+      if(!confirm(t("remove_confirm").replace("%s",a?a.alias:uid)))return;
+      fetchJSON("/api/accounts/remove",{userid:uid}).then(function(r){
+        if(!r.ok)alert(r.message||r.error||t("remove_fail"));
+        refreshStatus();
+      }).catch(function(){alert(t("srv_down"))});
+    });
+  });
+}
+function toggleAccount(uid,checked,row){
+  row.classList.add("pending");
+  fetchJSON("/api/accounts/toggle",{userid:uid,enabled:checked}).then(function(r){
+    row.classList.remove("pending");
+    if(!r.ok){
+      row.querySelector(".ck").checked=!checked;
+      var e=row.querySelector(".rowerr");e.style.display="block";
+      e.textContent=r.message||r.error||t("toggle_fail");
+      setTimeout(function(){e.style.display="none"},3000);
+    }
+    refreshStatus();
+  }).catch(function(){
+    row.classList.remove("pending");
+    row.querySelector(".ck").checked=!checked;
+  });
+}
+$("addBtn").addEventListener("click",function(){
+  var btn=$("addBtn");
+  btn.disabled=true;var old=btn.innerHTML;btn.textContent="…";
+  fetchJSON("/api/accounts/add",{}).then(function(r){
+    if(r.ok){btn.textContent="✓";setTimeout(function(){btn.innerHTML=old;btn.disabled=false},1500);}
+    else{btn.innerHTML=old;btn.disabled=false;alert(r.message||r.error||t("remove_fail"));}
+    refreshStatus();
+  }).catch(function(){btn.innerHTML=old;btn.disabled=false;alert(t("srv_down"))});
+});
+$("allBtn").addEventListener("click",function(){
+  var accs=lastAccountsData||[];
+  if(!accs.length)return;
+  var target=!(accs.every(function(a){return a.enabled}));
+  accs.forEach(function(a){
+    if(a.enabled!==target)
+      fetchJSON("/api/accounts/toggle",{userid:a.userid,enabled:target})
+        .then(function(r){if(!r.ok)refreshStatus();}).catch(function(){refreshStatus();});
+  });
+  setTimeout(refreshStatus,600);
+});
+function settingsFocused(){
+  var el=document.activeElement;
+  return el&&(el===$("interval")||el===$("set-desc"));
+}
+function fillSettings(st){
+  if(settingsFocused())return;
+  if(!st)return;
+  $("interval").value=st.interval;
+  $("set-daily").checked=!!st.daily_gift;
+  $("set-capstop").checked=!!st.cap_stop;
+  $("set-autobox").checked=!!st.auto_box;
+  if(document.activeElement!==$("set-desc"))$("set-desc").value=st.desc||"";
+}
+function refreshStatus(){
+  fetchJSON("/api/status").then(function(s){
+    fetchJSON("/api/accounts").then(function(d){
+      lastAccountsData=d.accounts||[];
+      renderAccounts(lastAccountsData);
+      var enabled=lastAccountsData.filter(function(a){return a.enabled});
+      var wk=enabled.reduce(function(acc,a){return acc+(a.weekly||0)},0);
+      var td=enabled.reduce(function(acc,a){return acc+(a.today||0)},0);
+      var cap=(s.weekly_cap||8)*Math.max(1,enabled.length);
+      $("week-sum").textContent=wk;$("week-cap").textContent=cap;
+      $("weekfill").style.width=Math.min(100,wk/cap*100)+"%";
+      $("today-sum").textContent=td;
+      var paused=lastAccountsData.filter(function(a){return a.status==="paused"}).length;
+      $("summary").textContent=enabled.length+t("enabled_n")+" · "+t("week")+wk+"/"+cap+
+        " · "+t("today")+td+
+        (s.current_alias?(" · "+t("processing")+s.current_alias):"")+
+        (paused?(" · "+paused+t("waiting")):"");
+    }).catch(function(){});
+    var st=s.settings||{};
+    var running=!!s.running,b=$("badge");
+    b.className="badge "+(running?(s.weekly>=8&&st.cap_stop?"cap":"run"):
+      (s.status==="error"?"err":"idle"));
+    b.textContent=running?(s.weekly>=8&&st.cap_stop?t("badge_capped"):t("badge_run")):
+      (s.status==="error"?t("badge_err"):(s.status==="stopped"?t("badge_stopped"):t("badge_idle")));
+    $("note").textContent=s.note||"";
+    $("st-ok").textContent=s.ok;
+    $("st-fail").textContent=s.fail;
+    $("st-uptime").textContent=s.started_at?fmtDur(s.uptime_s):"—";
+    $("st-last").textContent=s.last_tick_at?fmtTs(s.last_tick_at):"—";
+    $("startBtn").disabled=running;
+    $("stopBtn").disabled=!running;
+    var ref=$("etaref");
+    if(s.cap_resume_eta){
+      var hrs=Math.max(0,Math.round((s.cap_resume_eta-Date.now()/1000)/360)/10);
+      ref.innerHTML=esc(t("eta_line"))+" <b class='eta'>"+fmtTs(s.cap_resume_eta)+"</b> "+
+        esc(t("eta_hours"))+hrs+" "+esc(t("hours_h"))+" "+esc(t("eta_hours2"));
+    }else{
+      ref.textContent=t("ref_line");
+    }
+    fillSettings(st);
+  }).catch(function(){});
+}
+function refreshData(){
+  fetchJSON("/api/gifts?limit=50").then(function(d){
+    setRows($("giftsTbl"),d.rows,[
+      {h:t("th_time"),f:function(r){return fmtTs(r.ts)},num:1},
+      {h:t("th_gift"),f:function(r){
+        var zhLabel=r.item_label&&r.item_label!==r.item_type;
+        var primary=lang==="en"?r.item_type:(zhLabel?r.item_label:r.item_type);
+        var secondary=primary===r.item_type?(zhLabel?r.item_label:""):r.item_type;
+        return "<span class='gift-name'>"+esc(primary)+"</span>"+
+          (secondary?"<div class='rawcode'>"+esc(secondary)+"</div>":"");
+       },
+       html:1},
+      {h:t("th_id"),f:function(r){return r.item_id||"—"},num:1},
+      {h:t("th_source"),f:function(r){
+        var img={tick:"weekly",daily:"gift",box:"mysterybox"}[r.source];
+        var ic=img?"<img src='/assets/icons/"+img+".png' alt=''>":"";
+        var lbl=I18N[lang]&&I18N[lang]["src_"+r.source];
+        if(!lbl)lbl=I18N.zh["src_"+r.source]||r.source_label||r.source;
+        return "<span class='src "+esc(r.source)+"'>"+ic+esc(lbl)+"</span>"},
+       html:1},
+      {h:t("th_account"),f:function(r){return "<span class='acc-tag'>"+esc(r.account||"—")+"</span>"},html:1}]);
+  }).catch(function(){});
+}
+var logsOpen=false,curLog="hb";
+$("logsCard").addEventListener("toggle",function(){
+  logsOpen=$("logsCard").open;
+  if(logsOpen)refreshLogs();
+});
+document.querySelectorAll(".logtabs .btn").forEach(function(b){
+  b.addEventListener("click",function(){
+    curLog=b.dataset.log;
+    document.querySelectorAll(".logtabs .btn").forEach(function(x){
+      x.classList.toggle("active",x===b)});
+    $("hbTbl").style.display=curLog==="hb"?"":"none";
+    $("evTbl").style.display=curLog==="ev"?"":"none";
+    refreshLogs();
+  });
+});
+function refreshLogs(){
+  if(!logsOpen)return;
+  fetchJSON("/api/heartbeats?limit=50").then(function(d){
+    $("hb-cnt").textContent=(d.rows||[]).length;
+    if(curLog!=="hb")return;
+    setRows($("hbTbl"),d.rows,[
+      {h:t("th_time"),f:function(r){return fmtTs(r.ts)},num:1},
+      {h:"HTTP",f:function(r){return r.http},num:1},
+      {h:t("th_result"),html:1,f:function(r){
+        return r.ok?"<span class='ok'>"+esc(r.note||t("last_ok"))+"</span>":
+          "<span class='fail'>"+esc(r.note||t("failed"))+"</span>"}}]);
+  }).catch(function(){});
+  fetchJSON("/api/events?limit=50").then(function(d){
+    $("ev-cnt").textContent=(d.rows||[]).length;
+    if(curLog!=="ev")return;
+    setRows($("evTbl"),d.rows,[
+      {h:t("th_time"),f:function(r){return fmtTs(r.ts)},num:1},
+      {h:t("th_kind"),f:function(r){return r.kind}},
+      {h:t("th_detail"),f:function(r){return r.detail}}]);
+  }).catch(function(){});
+}
+$("startBtn").addEventListener("click",function(){
+  var v=parseInt($("interval").value,10);if(!(v>=30))v=360;
+  fetchJSON("/api/start",{interval:v}).then(function(r){
+    $("note").textContent=r.message||"";
+    setTimeout(refreshStatus,300);setTimeout(refreshData,1500);
+  }).catch(function(){$("note").textContent=t("srv_down")});
+});
+$("stopBtn").addEventListener("click",function(){
+  fetchJSON("/api/stop",{}).then(function(){
+    setTimeout(refreshStatus,300);setTimeout(refreshData,1500);
+  }).catch(function(){$("note").textContent=t("srv_down")});
+});
+$("saveSetBtn").addEventListener("click",function(){
+  var btn=$("saveSetBtn"),note=$("set-note");
+  var v=parseInt($("interval").value,10);if(!(v>=30))v=360;
+  btn.disabled=true;note.className="muted";note.style.color="";note.textContent=t("saving");
+  fetchJSON("/api/settings",{
+    interval:v,
+    daily_gift:$("set-daily").checked,
+    cap_stop:$("set-capstop").checked,
+    auto_box:$("set-autobox").checked,
+    desc:$("set-desc").value.trim()||"klei_panel"
+  }).then(function(r){
+    if(r.ok){note.style.color="var(--accent)";note.textContent=t("saved");
+      setTimeout(function(){note.textContent=""},2000);}
+    else{note.style.color="var(--err-fg)";note.textContent=r.error||t("save_fail");}
+    btn.disabled=false;setTimeout(refreshStatus,300);
+  }).catch(function(){
+    note.style.color="var(--err-fg)";note.textContent=t("save_fail");btn.disabled=false;
+  });
+});
+applyLang();
+refreshStatus();refreshData();
+setInterval(refreshStatus,3000);
+setInterval(refreshData,10000);
+setInterval(refreshLogs,15000);
+</script>
+</body>
+</html>
