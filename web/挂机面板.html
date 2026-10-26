@@ -218,6 +218,27 @@ tbody tr:hover{background:var(--hover)}
 .gift-cell{display:inline-flex;align-items:center;gap:8px}
 .gift-ic{width:28px;height:28px;image-rendering:pixelated;border-radius:6px;
   background:var(--muted-bg);border:1px solid var(--line);padding:2px}
+/* 稀有度颜色(按 DST 游戏内传统色相;亮色组 L28%/暗色组 L66%,已过 WCAG) */
+:root{--rarL:28%}
+html[data-theme="dark"],html[data-theme="winter"],html[data-theme="forge"]{--rarL:66%}
+.rar{font-weight:600;color:hsl(var(--rh) var(--rs) var(--rl,var(--rarL)))}
+.rar-common{--rh:0;--rs:0%}
+.rar-classy,.rar-heirloom-classy{--rh:130;--rs:38%}
+.rar-spiffy{--rh:210;--rs:62%}
+.rar-distinguished{--rh:270;--rs:48%}
+.rar-elegant,.rar-heirloom-elegant{--rh:28;--rs:85%}
+.rar-loyal{--rh:168;--rs:42%}
+.rar-timeless{--rh:350;--rs:60%}
+.rar-event{--rh:320;--rs:55%}
+.rar-reward{--rh:85;--rs:45%}
+.rar-character{--rh:8;--rs:65%}
+.rar-complimentary{--rh:200;--rs:60%}
+.rar-proof-of-purchase{--rh:282;--rs:50%}
+.rar-resurrected{--rh:48;--rs:70%;--rl:22%}
+html[data-theme="dark"] .rar-resurrected,
+html[data-theme="winter"] .rar-resurrected,
+html[data-theme="forge"] .rar-resurrected{--rl:var(--rarL)}
+.gift-cell.rar .gift-ic{border-color:hsl(var(--rh) var(--rs) var(--rl,var(--rarL))/.55)}
 .rawcode{font-size:11px;font-family:var(--mono);color:var(--text-2)}
 .src{display:inline-flex;align-items:center;gap:5px;border-radius:999px;
   padding:1px 9px;font-size:12px;font-weight:600}
@@ -671,10 +692,11 @@ function refreshData(){
         var primary=lang==="en"?(r.en_name||r.item_type):(zhLabel?r.item_label:r.item_type);
         var secondary=primary===r.item_type?(zhLabel?r.item_label:""):r.item_type;
         var rarity=lang==="en"?(r.rarity||""):(r.rarity_zh||"");
+        var rk=((r.rarity||"common").toLowerCase().replace(/\s+/g,"-"));
         var ic=r.icon?"<img class='gift-ic' src='"+esc(r.icon)+"' alt=''>":"";
         var sub=secondary?"<div class='rawcode'>"+esc(secondary)+
-          (rarity?" · "+esc(rarity):"")+"</div>":"";
-        return "<span class='gift-cell'>"+ic+
+          (rarity?" · <span class='rar rar-"+rk+"'>"+esc(rarity)+"</span>":"")+"</div>":"";
+        return "<span class='gift-cell rar rar-"+rk+"'>"+ic+
           "<span class='gift-name'>"+esc(primary)+"</span></span>"+sub;
        },
        html:1},
