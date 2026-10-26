@@ -102,7 +102,8 @@ chester\
 ├─ klei_panel.py            控制面板服务 v5(多账号勾选/设置/统计/礼物中文标签,
 │                             127.0.0.1:8377,--port/--no-browser)
 ├─ web\挂机面板.html          面板前端(中英切换、6 套皮肤、DST 图标、Amarante 字体)
-├─ web\assets\               DST 图标(icons)+ 字体(fonts),面板 /assets/ 伺服
+├─ web\assets\               DST 图标(icons)+ 字体(fonts)+ 全皮肤图标库(items,2953 件)
+│                             面板 /assets/ 伺服
 ├─ panel_settings.json       面板设置(运行期生成,gitignore)
 ├─ panel_accounts.json       账号注册表(运行期生成,gitignore)
 ├─ _cdp.py                   moli CDP 调试助手(抓图标/截图用,开发工具)
@@ -163,7 +164,9 @@ identity 指针,且 Klei 走 `ISteamUserAuth/AuthenticateUserTicket` 验票,绑�
 - 行为受 Klei 服务条款约束,仅供自用学习;日志分享前抹掉 `KU_`/SteamID/`pcl-` 串;
 - **免责声明**:本项目与 Klei Entertainment 无任何关联;使用本工具产生的账号风险由使用者自行承担;
 - **素材署名**:界面中的游戏图标与 "Don't Starve" 字样版权归 Klei Entertainment 所有,
-  此处仅作个人工具的非商业性标识使用;如权利方提出要求,将立即替换。
+  此处仅作个人工具的非商业性标识使用;如权利方提出要求,将立即替换;
+  全皮肤名称/图标数据库来自 [dst-skins-checklist](https://dst-skins-checklist.github.io/)(2953 件,
+  原码→英文名/收藏组/稀有度+图标),致谢该开源项目。
 
 ## 9. 多账号挂机(面板已支持)
 

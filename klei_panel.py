@@ -238,6 +238,17 @@ def label_item(item_type):
 
 SOURCE_ZH = {"tick": "周礼", "daily": "每日礼", "box": "神秘箱"}
 
+# ---------------------------------------------------------------- 全量皮肤库
+# 数据源:dst-skins-checklist.github.io(2953 件:原码→英文名/收藏组/稀有度+图标)
+# 图标存 web/assets/items/<CODE>.png,名称索引存 web/assets/items/index.json
+SKINS_PATH = os.path.join(WEB_DIR, "assets", "items", "index.json")
+try:
+    SKINS_DB = json.load(open(SKINS_PATH, encoding="utf-8"))
+except (OSError, ValueError):
+    SKINS_DB = {}
+COLL_ZH = json.loads(json.dumps({"": "", "Abyssal": "深渊", "Adventurer's": "冒险家", "Aged": "苍古", "An Eye for an Eye": "以眼还眼", "Ancient": "远古", "Art Nouveau": "新艺术", "Barber's": "理发师", "Canadiana": "加拿大风情", "Cawnival": "乌鸦嘉年华", "Chitinous": "几丁质", "Costume": "戏服", "Cottage": "田园", "Crystalline": "晶体", "Dark Wizard": "黑魔法师", "Decennial": "十周年", "Decorator's": "装饰师", "Detective": "侦探", "Experimental": "实验", "Fantasmical": "幻梦", "Farmhand": "农夫", "Flock's": "禽群", "Fool's": "愚人", "Forge": "熔炉", "Forlorn Doll": "孤寂人偶", "Formal": "典雅", "Gothic": "哥特", "Hallowed Nights": "万圣夜", "Hand-me-down": "传家旧物", "Head Chef": "主厨", "Heart": "心形", "Hollow": "空心", "Jeweled": "珠宝", "Joker's": "小丑", "Lunar New Year": "农历新年", "Lush": "繁茂", "Masquerade": "化装舞会", "Merrymaker": "寻欢客", "Minotaur": "米诺陶", "Moonbound": "缚月", "Musclebound": "肌肉", "Mystic": "神秘", "Mythic": "神话", "Nautical": "航海", "Next of Kin": "至亲", "Nom de Plume": "笔名", "Oasis Bound": "绿洲之旅", "Orbital": "环轨", "Pantomime": "哑剧", "Parlor's": "会客厅", "Reliquary": "圣物", "Rose": "玫瑰", "Royal": "王室", "Seaside": "海滨", "Shadow": "暗影", "Shelled": "甲壳", "Shorts": "短裤", "Side Show": "助兴表演", "Snowfallen": "落雪", "Strongman": "大力士", "Survivor": "幸存者", "Swamp": "沼泽", "Swashbuckler": "侠盗", "Theater": "剧院", "Tinkersmith": "巧匠", "Trawler": "拖网渔船", "Uncorrupted": "未染", "Victorian": "维多利亚", "Wagstaff": "瓦格斯塔夫", "Winged Victory": "翼之胜利", "Winter": "冬宴", "Year of the Carrat": "卡拉特鼠之年", "Year of the Clockwork Knight": "发条骑士之年", "Year of the Pig King": "猪王之年", "Year of the Varg": "座狼之年"}))
+RARITY_ZH = json.loads(json.dumps({"Common": "普通", "Classy": "精致", "Spiffy": "华丽", "Distinguished": "卓越", "Elegant": "典雅", "Loyal": "忠诚", "Timeless": "永恒", "Heirloom Elegant": "传家典雅", "Event": "活动", "Reward": "奖励", "Character": "角色", "Complimentary": "赠礼", "Resurrected": "复刻", "Proof Of Purchase": "凭证"}))
+
 
 class AccountMismatch(RuntimeError):
     """重登后 UserID 与当前账号不符(Steam 当前登录的可能是别的账号)。不可自愈。"""
@@ -434,12 +445,27 @@ def account_rows(panel):
 
 
 def gift_enrich(rows):
-    """礼物行加中文标签(服务端集中算,前端免字典)。"""
+    """礼物行加中文标签与皮肤库信息(服务端集中算,前端免字典)。"""
     out = []
     for r in rows:
         r = dict(r)
-        r["item_label"] = label_item(r.get("item_type"))
+        code = r.get("item_type")
+        meta = SKINS_DB.get(code)
+        r["item_label"] = label_item(code)
         r["source_label"] = SOURCE_ZH.get(r.get("source"), r.get("source") or "?")
+        r["icon"] = "/assets/items/%s.png" % code if meta else None
+        if meta:
+            r["en_name"] = meta.get("en")
+            r["rarity"] = meta.get("rarity")
+            r["rarity_zh"] = meta.get("rarity_zh")
+            r["collection_zh"] = meta.get("collection_zh")
+        else:
+            r["en_name"] = None
+        # 原码翻译不出时,回退收藏组中文名(如"主厨系列"),再退原码
+        if r["item_label"] == code and meta:
+            czh = meta.get("collection_zh")
+            if czh:
+                r["item_label"] = czh + "系列"
         out.append(r)
     return out
 

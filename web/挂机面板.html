@@ -215,6 +215,9 @@ tbody tr:hover{background:var(--hover)}
 .ok{color:var(--accent-fg);font-weight:600}.fail{color:var(--err-fg);font-weight:600}
 .muted{color:var(--text-2)}
 .gift-name{font-weight:600}
+.gift-cell{display:inline-flex;align-items:center;gap:8px}
+.gift-ic{width:28px;height:28px;image-rendering:pixelated;border-radius:6px;
+  background:var(--muted-bg);border:1px solid var(--line);padding:2px}
 .rawcode{font-size:11px;font-family:var(--mono);color:var(--text-2)}
 .src{display:inline-flex;align-items:center;gap:5px;border-radius:999px;
   padding:1px 9px;font-size:12px;font-weight:600}
@@ -665,10 +668,14 @@ function refreshData(){
       {h:t("th_time"),f:function(r){return fmtTs(r.ts)},num:1},
       {h:t("th_gift"),f:function(r){
         var zhLabel=r.item_label&&r.item_label!==r.item_type;
-        var primary=lang==="en"?r.item_type:(zhLabel?r.item_label:r.item_type);
+        var primary=lang==="en"?(r.en_name||r.item_type):(zhLabel?r.item_label:r.item_type);
         var secondary=primary===r.item_type?(zhLabel?r.item_label:""):r.item_type;
-        return "<span class='gift-name'>"+esc(primary)+"</span>"+
-          (secondary?"<div class='rawcode'>"+esc(secondary)+"</div>":"");
+        var rarity=lang==="en"?(r.rarity||""):(r.rarity_zh||"");
+        var ic=r.icon?"<img class='gift-ic' src='"+esc(r.icon)+"' alt=''>":"";
+        var sub=secondary?"<div class='rawcode'>"+esc(secondary)+
+          (rarity?" · "+esc(rarity):"")+"</div>":"";
+        return "<span class='gift-cell'>"+ic+
+          "<span class='gift-name'>"+esc(primary)+"</span></span>"+sub;
        },
        html:1},
       {h:t("th_id"),f:function(r){return r.item_id||"—"},num:1},
