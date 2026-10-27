@@ -59,16 +59,31 @@ PATH_RECEIPT = "/clientitems/DST/VerifyGiftingReceipt"
 PATH_OPENED = "/clientitems/DST/SetItemOpened"
 
 WEEKLY_CAP = 8                 # PC 周礼上限(社区情报,见 docs/情报-社区与SDK调研)
-CAP_WINDOW = 7 * 24 * 3600     # 滑动窗口
+CAP_WINDOW = 7 * 24 * 3600     # 滑动窗口(与下行 SUSPECT_ANCHOR_WINDOW_S 有意同值:
+                               #  领满计数窗与干燥锚点搜索窗共用同一个服务端周)
 MAX_OPEN_CHAIN = 200           # 与 klei_open_gifts.MAX_CHAIN 对齐
 MAX_BOX_PER_ROUND = 50         # 单轮自动开神秘箱上限
+
+# ---- 疑似满仓监控(面板外已领的周礼协议层查不到,只能按有效挂机干燥期启发式判断) ----
+TICK_EFFECTIVE_S = 360             # 1 个成功 tick ≈ 服务端 6 分钟有效游玩(协议事实)
+SUSPECT_ASK_TIMEOUT_S = 1800       # 问询无人应答 → 自动"继续"(30 分钟)
+SUSPECT_REASK_COOLDOWN_S = 86400   # 答"继续"后至少 24h 内不再重复问
+SUSPECT_ASK_PROBE_S = 1800         # 问询挂起中:该账号 tick 降频间距(墙钟)
+SUSPECT_MUTE_PROBE_S = 7200        # 用户选"暂停该账号":低频探测间距(墙钟)
+SUSPECT_ANCHOR_WINDOW_S = 7 * 24 * 3600   # 干燥锚点搜索窗口(防上月闲置尾巴误触发;
+                                           #  与 CAP_WINDOW 有意同值,见其注释)
+SUSPECT_META_STATE = "suspect_state"       # meta 键: ''|ask|ack|mute
+SUSPECT_META_ASK = "suspect_ask_ts"
+SUSPECT_META_ACK = "suspect_ack_ts"
+SUSPECT_META_WEEKLY = "suspect_weekly"     # 上次评估时的窗口周礼数(增量=真礼物到达)
 
 DB_LOCK = threading.RLock()    # 所有 SQLite 访问共用一把锁(跨线程读写)
 
 # ---------------------------------------------------------------- 设置
 SETTINGS_PATH = os.path.join(HERE, "panel_settings.json")   # 用户本地配置,gitignore 排除
 SETTINGS_DEFAULTS = {"interval": 360, "auto_box": False, "daily_gift": True,
-                     "cap_stop": True, "desc": "klei_panel"}
+                     "cap_stop": True, "desc": "klei_panel",
+                     "suspect_ask": True, "suspect_hours": 6.0}
 SETTINGS_LOCK = threading.Lock()   # 序列化 tmp 写+replace,防并发保存互相写坏
 
 
@@ -81,9 +96,13 @@ def validate_settings(d):
         out["interval"] = max(30, min(3600, int(d.get("interval", 360))))
     except (TypeError, ValueError, OverflowError):   # 1e999→inf→OverflowError
         pass
-    for k in ("auto_box", "daily_gift", "cap_stop"):
+    for k in ("auto_box", "daily_gift", "cap_stop", "suspect_ask"):
         if isinstance(d.get(k), bool):
             out[k] = d[k]
+    try:
+        out["suspect_hours"] = max(3.0, min(12.0, float(d.get("suspect_hours", 6.0))))
+    except (TypeError, ValueError, OverflowError):
+        pass
     if isinstance(d.get("desc"), str) and d["desc"].strip():
         out["desc"] = d["desc"].strip()[:100]
     return out
@@ -356,6 +375,31 @@ class AccountStore:
                 (since, source)).fetchone()
         return row[0] if row and row[0] else None
 
+    def dry_stats(self):
+        """疑似满仓判定数据:(ok_ticks, anchor_ts, stuck_unopened)。
+        锚点 = 窗口内最近一次周礼(source=tick);无则窗口内首个成功心跳
+        (面板外历史不可见,从面板自己首个 tick 起积累干燥期)。
+        ok_ticks = 锚点后的成功心跳数(每个≈TICK_EFFECTIVE_S 服务端进度,
+        与 interval 设置无关);stuck = 其中 E_UNOPENED_ITEMS 次数
+        (礼物卡库存未开也表现为"不出礼",问询文案要区分提示)。"""
+        win = time.time() - SUSPECT_ANCHOR_WINDOW_S
+        with DB_LOCK:
+            a = self.db.execute(
+                "SELECT MAX(ts) FROM gifts WHERE source='tick' AND ts>?",
+                (win,)).fetchone()[0]
+            cmp_op = ">"                     # 礼物锚点:之后的 tick 计数
+            if a is None:
+                a = self.db.execute(
+                    "SELECT MIN(ts) FROM heartbeats WHERE ok=1 AND ts>?",
+                    (win,)).fetchone()[0]
+                cmp_op = ">="                # 心跳锚点:锚点本身也是第 1 个有效 tick
+            if a is None:
+                return 0, None, 0
+            n, stuck = self.db.execute(
+                "SELECT COUNT(*), SUM(note='E_UNOPENED_ITEMS') FROM heartbeats "
+                "WHERE ok=1 AND ts%s?" % cmp_op, (a,)).fetchone()
+        return int(n or 0), a, int(stuck or 0)
+
     # ---- 会话文件 ----
     def save_session(self, resp_json):
         with open(self.session_path, "w", encoding="utf-8") as f:
@@ -419,10 +463,12 @@ def account_rows(panel):
         ticks = [0, 0]
         gifts_total = 0
         last_active = None
+        sus = ""
         has_session = os.path.isfile(os.path.join(ACCOUNTS_DIR, uid, "session.json"))
         if store:
             weekly = store.gifts_since(time.time() - CAP_WINDOW, source="tick")
             today = store.gifts_since(_today0())
+            sus = store.get_meta(SUSPECT_META_STATE) or ""   # 只读展示,不推进状态机
             with DB_LOCK:
                 db = store.db
                 t = db.execute("SELECT COUNT(*),SUM(ok) FROM heartbeats").fetchone()
@@ -438,6 +484,10 @@ def account_rows(panel):
             status, reason = "needs_login", "无会话,请切 Steam 到该账号后重新添加"
         elif it["enabled"] and panel.get_settings().get("cap_stop") and weekly >= WEEKLY_CAP:
             status, reason = "capped", "本周已领满"
+        elif it["enabled"] and sus == "mute":
+            status, reason = "suspect_mute", "疑似领满,低频探测中"
+        elif it["enabled"] and sus == "ask":
+            status, reason = "suspect", "疑似领满,待确认"
         elif it["enabled"]:
             status, reason = "ok", None
         else:
@@ -446,7 +496,8 @@ def account_rows(panel):
                      "enabled": it["enabled"], "has_session": has_session,
                      "ticks_total": ticks[0], "ticks_ok": ticks[1],
                      "gifts_total": gifts_total, "weekly": weekly, "today": today,
-                     "status": status, "paused_reason": reason, "last_active_ts": last_active})
+                     "status": status, "paused_reason": reason, "last_active_ts": last_active,
+                     "suspect": sus or None})
     return rows
 
 
@@ -476,6 +527,182 @@ def gift_enrich(rows):
     return out
 
 
+# ---------------------------------------------------------------- 疑似满仓监控
+def emit_event(store, kind, detail=""):
+    """写账号事件(worker 之外的线程也可写);尽力而为,落库失败不反噬。"""
+    if store is not None:
+        try:
+            store.add_event(kind, detail)
+        except Exception:
+            pass
+
+
+def _meta_float(store, key):
+    try:
+        return float(store.get_meta(key, 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _suspect_wipe(store):
+    with DB_LOCK:
+        for k in (SUSPECT_META_STATE, SUSPECT_META_ASK, SUSPECT_META_ACK,
+                  SUSPECT_META_WEEKLY):
+            store.db.execute("DELETE FROM meta WHERE key=?", (k,))
+        store.db.commit()
+
+
+def suspect_threshold_ticks(cfg):
+    """阈值换算:有效小时 → ok tick 数(3~12h 由 validate_settings 收敛)。"""
+    try:
+        h = float(cfg.get("suspect_hours", 6.0))
+    except (TypeError, ValueError):
+        h = 6.0
+    return max(1, int(round(h * 3600.0 / TICK_EFFECTIVE_S)))
+
+
+def eval_suspect(store, alias, cfg, weekly, rt=None, now=None):
+    """疑似满仓状态机单步(worker 每轮账号处理后与 /api/status 组装时共用)。
+    状态存每账号 meta(重启自动恢复):
+      ''    正常
+      ask   干燥期达阈值,问询未决(前端弹窗;后台降频探测;超时自动继续)
+      ack   用户答"继续"或超时自动继续(恢复全速,冷却 24h 内不再问)
+      mute  用户答"暂停该账号"(2h 低频探测;礼物到/关→开勾选才恢复)
+    优先级:礼物到达(干燥期重置)清一切 > 实证 weekly>=8 清 ask/ack(保留 mute)
+    > 超时自动继续 > 达阈值问询。整个推进持 DB_LOCK,worker/HTTP 双侧调用不交错。
+    返回 (state, ask_ts, dry_h, ok_ticks, stuck)。"""
+    now = time.time() if now is None else now
+    with DB_LOCK:
+        state = store.get_meta(SUSPECT_META_STATE) or ""
+        ask_ts = _meta_float(store, SUSPECT_META_ASK)
+        ack_ts = _meta_float(store, SUSPECT_META_ACK)
+        ok_n, _anchor, stuck = store.dry_stats()
+        thr = suspect_threshold_ticks(cfg)
+        dry_h = round(ok_n * TICK_EFFECTIVE_S / 3600.0, 1)
+        ev = None
+
+        # 真礼物到达 = 窗口周礼计数比上次评估增加(窗口滑动只会减不会增):
+        # 唯一允许清 mute 的路径;事件如实记 gift,不与"阈值/窗口变化"混淆。
+        weekly_prev_raw = store.get_meta(SUSPECT_META_WEEKLY)
+        weekly_prev = (int(float(weekly_prev_raw))
+                       if weekly_prev_raw not in (None, "") else None)
+        if weekly_prev is None:               # 首次评估:只落快照
+            store.set_meta(SUSPECT_META_WEEKLY, repr(int(weekly)))
+        elif weekly != weekly_prev:
+            store.set_meta(SUSPECT_META_WEEKLY, repr(int(weekly)))
+        gift_arrived = weekly_prev is not None and weekly > weekly_prev
+
+        if gift_arrived:
+            if state:
+                ev = ("suspect_clear", "gift(本周第 %d 个周礼,干燥期重置)" % weekly)
+                _suspect_wipe(store)
+                state, ask_ts, ack_ts = "", 0.0, 0.0
+        elif ok_n < thr:
+            # 干燥期低于阈值:礼物没来,只是阈值调高/锚点滑出窗口——
+            # mute 是用户明确手势,保留;ask 降级 ack(记 recheck,保留冷却记忆,
+            # 阈值调回后由 24h 冷却兜住不会立即重弹)
+            if state == "ask":
+                state, ack_ts = "ack", now
+                store.set_meta(SUSPECT_META_STATE, "ack")
+                store.set_meta(SUSPECT_META_ACK, repr(now))
+                ev = ("suspect_clear",
+                      "recheck(阈值/窗口变化,干燥期 %d/%d)" % (ok_n, thr))
+        elif weekly >= WEEKLY_CAP and state and state != "mute":
+            # 面板实证领满:已知答案不再问;mute 是用户明确要停,保留
+            ev = ("suspect_clear", "capped(实证 %d/%d)" % (weekly, WEEKLY_CAP))
+            _suspect_wipe(store)
+            state, ask_ts, ack_ts = "", 0.0, 0.0
+        else:
+            if state == "ask" and now - ask_ts >= SUSPECT_ASK_TIMEOUT_S:
+                # 无人应答 → 自动继续:误报时出礼进度不受损,真满仓时代价≈0
+                state, ack_ts = "ack", now
+                store.set_meta(SUSPECT_META_STATE, "ack")
+                store.set_meta(SUSPECT_META_ACK, repr(now))
+                ev = ("suspect_continue", "auto(超时自动继续,%.1fh 无掉落)" % dry_h)
+            if (cfg.get("suspect_ask", True) and ok_n >= thr
+                    and weekly < WEEKLY_CAP):
+                cooldown_over = not ack_ts or now >= ack_ts + SUSPECT_REASK_COOLDOWN_S
+                if (not state or state == "ack") and cooldown_over:
+                    state, ask_ts = "ask", now
+                    store.set_meta(SUSPECT_META_STATE, "ask")
+                    store.set_meta(SUSPECT_META_ASK, repr(now))
+                    ev = ("suspect_ask",
+                          "有效挂机 %.1fh(%d tick)无周礼,疑似面板外已领满" % (dry_h, ok_n))
+
+        # 用户关闭问询开关:挂起中的 ask 立即撤回为 ack(不必等 30 分钟超时)
+        if (not cfg.get("suspect_ask", True) and state == "ask"):
+            state, ack_ts = "ack", now
+            store.set_meta(SUSPECT_META_STATE, "ack")
+            store.set_meta(SUSPECT_META_ACK, repr(now))
+            ev = ("suspect_continue", "settings(问询已关闭,自动继续)")
+
+        if ev:
+            store.add_event(ev[0], ev[1])
+    if rt is not None:
+        rt.suspect_state = state or None
+        rt.suspect_ask_ts = ask_ts
+        rt.suspect_ack_ts = ack_ts
+    return state or None, ask_ts, dry_h, ok_n, stuck
+
+
+def suspect_reset(userid, rt=None):
+    """关→开勾选 / 移除重加:清疑似态(用户手动重试手势,与 mismatch 重试把手同语义)。"""
+    store = rt.store if rt is not None and rt.store is not None else None
+    created = False
+    if store is None:
+        if not os.path.isfile(os.path.join(ACCOUNTS_DIR, userid, "account.db")):
+            return
+        store = AccountStore(userid)
+        created = True
+    try:
+        if store.get_meta(SUSPECT_META_STATE):
+            emit_event(store, "suspect_clear", "toggle(用户重试)")
+        _suspect_wipe(store)
+    finally:
+        if created:
+            with DB_LOCK:
+                store.db.close()
+    if rt is not None:
+        rt.suspect_loaded = False
+        rt.suspect_state = None
+
+
+def suspect_rows(panel):
+    """/api/status 用:启用账号中处于 ask 态的问询列表;顺带懒推进状态机
+    (面板停止/重启期间,30 分钟超时也要能走;ask_ts 升序,前端逐个弹)。"""
+    cfg = panel.get_settings()
+    w = panel.worker
+    runtimes = w.runtimes if w else {}
+    out = []
+    for it in panel.registry_snapshot():
+        if not it.get("enabled"):
+            continue
+        uid = it["userid"]
+        rt = runtimes.get(uid)
+        store = rt.store if rt and rt.store is not None else None
+        created = False
+        if store is None:
+            if not os.path.isfile(os.path.join(ACCOUNTS_DIR, uid, "account.db")):
+                continue
+            store = AccountStore(uid)
+            created = True
+        try:
+            weekly = store.gifts_since(time.time() - CAP_WINDOW, source="tick")
+            state, ask_ts, dry_h, ok_n, stuck = eval_suspect(
+                store, it.get("alias") or uid, cfg, weekly, rt=rt)
+            if state == "ask":
+                out.append({"userid": uid, "alias": it.get("alias") or uid,
+                            "ask_ts": ask_ts, "dry_h": dry_h, "dry_ticks": ok_n,
+                            "timeout_at": ask_ts + SUSPECT_ASK_TIMEOUT_S,
+                            "stuck_unopened": stuck})
+        finally:
+            if created:
+                with DB_LOCK:
+                    store.db.close()
+    out.sort(key=lambda r: r["ask_ts"])
+    return out
+
+
 class AccountRuntime:
     """单个账号的运行态(worker 线程私有)。"""
 
@@ -489,6 +716,12 @@ class AccountRuntime:
         self.paused_reason = None    # "mismatch" → 终态,关闭再开启重试
         self.last_error = None
         self.last_relogin_ts = 0.0
+        # ---- 疑似满仓(meta 为权威源,rt 只放易失镜像与节拍) ----
+        self.suspect_state = None    # None | "ask" | "ack" | "mute"(懒加载自 meta)
+        self.suspect_ask_ts = 0.0
+        self.suspect_ack_ts = 0.0
+        self.suspect_loaded = False  # 首次处理该账号时从 meta 加载
+        self.last_tick_ts = 0.0      # 最近一次真实 tick 时刻;懒加载 = MAX(heartbeats.ts)
 
 
 class Worker(threading.Thread):
@@ -504,9 +737,26 @@ class Worker(threading.Thread):
         self.current = None
 
     # ---- 工具 ----
+    def _suspect_load(self, rt):
+        """每账号一次:从 meta 加载疑似态镜像;last_tick_ts 取最近心跳时刻,
+        重启后探测间距从上次真实活动起算,不会立即补发一串 tick。"""
+        if rt.suspect_loaded or rt.store is None:
+            return
+        rt.suspect_loaded = True
+        rt.suspect_state = rt.store.get_meta(SUSPECT_META_STATE) or None
+        rt.suspect_ask_ts = _meta_float(rt.store, SUSPECT_META_ASK)
+        rt.suspect_ack_ts = _meta_float(rt.store, SUSPECT_META_ACK)
+        with DB_LOCK:
+            row = rt.store.db.execute("SELECT MAX(ts) FROM heartbeats").fetchone()
+        rt.last_tick_ts = float(row[0]) if row and row[0] else 0.0
+
     def _ev(self, rt, kind, detail=""):
         if rt is not None and rt.store is not None:
-            rt.store.add_event(kind, detail)
+            try:
+                rt.store.add_event(kind, detail)
+            except Exception:
+                pass   # 事件是尽力而为:落库失败(锁/磁盘)绝不反噬调用方——
+                       # 错误兜底路径自身必须零 DB 依赖,持续故障才杀不死 worker
         tag = ("[%s]" % rt.alias) if rt is not None and rt.alias else ""
         print("[panel:%s]%s %s %s" % (time.strftime("%H:%M:%S"), tag, kind, detail), flush=True)
 
@@ -713,6 +963,15 @@ class Worker(threading.Thread):
                 rt.capped = False
                 self._ev(rt, "cap_resume", "滑动窗口恢复,继续心跳")
 
+            # 疑似满仓降频:ask/mute 态按墙钟间距探测,间距内本轮让位跳过
+            # (跳过轮不写心跳:没发 tick 就不能记,否则污染干燥期计数)
+            self._suspect_load(rt)
+            spacing = {"ask": SUSPECT_ASK_PROBE_S,
+                       "mute": SUSPECT_MUTE_PROBE_S}.get(rt.suspect_state or "")
+            if spacing and time.time() - rt.last_tick_ts < spacing:
+                return True
+            rt.last_tick_ts = time.time()
+
             st, j, raw = HB.tick(rt.token)
             if st == 0:
                 p.inc(tick_fail=1)
@@ -808,6 +1067,18 @@ class Worker(threading.Thread):
                     p.set(current_userid=rt.userid, current_alias=rt.alias)
                     ok = self._process_account(rt, cfg)
                     all_failed = all_failed and not ok
+                    if rt.store is not None:
+                        # 疑似满仓状态机推进(每轮一次;HTTP 侧 suspect_rows 会懒补)。
+                        # 必须兜异常:run() 只有 finally 没有 except,裸 DB 异常
+                        # (跨进程写锁/磁盘错)会杀死 worker 线程、全部账号停摆。
+                        try:
+                            weekly = rt.store.gifts_since(
+                                time.time() - CAP_WINDOW, source="tick")
+                            eval_suspect(rt.store, rt.alias, cfg, weekly, rt=rt)
+                        except Exception as e:
+                            rt.last_error = repr(e)[:160]
+                            self._ev(rt, "error",
+                                     "疑似态推进失败(下轮重试): %s" % rt.last_error)
                     self.current = None
                     p.set(current_userid=None, current_alias=None)
                     if self.stop_event.wait(3):   # 账号间错峰
@@ -871,6 +1142,7 @@ class Panel:
         if rt:
             rt.paused_reason = None            # 移除→重新添加 = L2 重试把手
             rt.capped = False
+        suspect_reset(uid, rt)                 # 疑似态同样清零:重加 = 重新评估
         if err == "dup":
             return None, "该账号已在注册表中,会话已刷新", 409
         if err:
@@ -899,11 +1171,47 @@ class Panel:
         if err:
             return False, err, 404
         w = self.worker
-        if enabled and w:
-            rt = w.runtimes.get(userid)
+        if enabled:
+            rt = w.runtimes.get(userid) if w else None
             if rt:
                 rt.paused_reason = None      # L2 重试把手:关→开即重试
+            suspect_reset(userid, rt)        # 疑似态同理:关→开 = 重新评估
         return True, "已%s,下一轮生效" % ("启用" if enabled else "停用",), 200
+
+    def answer_suspect(self, userid, action):
+        """弹窗应答:continue=继续挂机(全速,24h 冷却) / mute=暂停该账号(2h 低频探测)。"""
+        if action not in ("continue", "mute"):
+            return False, "action 必须是 continue 或 mute", 400
+        if not any(it["userid"] == userid for it in self.registry_snapshot()):
+            return False, "账号不存在", 404
+        w = self.worker
+        rt = w.runtimes.get(userid) if w else None
+        store = rt.store if rt and rt.store is not None else None
+        created = False
+        if store is None:
+            if not os.path.isfile(os.path.join(ACCOUNTS_DIR, userid, "account.db")):
+                return False, "账号数据库不存在", 404
+            store = AccountStore(userid)
+            created = True
+        try:
+            now = time.time()
+            with DB_LOCK:
+                if action == "continue":
+                    store.set_meta(SUSPECT_META_STATE, "ack")
+                    store.set_meta(SUSPECT_META_ACK, repr(now))
+                    emit_event(store, "suspect_continue", "user(继续挂机)")
+                    msg = "已继续挂机(24 小时内不再重复询问)"
+                else:
+                    store.set_meta(SUSPECT_META_STATE, "mute")
+                    emit_event(store, "suspect_mute", "user(暂停该账号,2h 低频探测)")
+                    msg = "该账号已转低频探测(2h 一次),收到礼物自动恢复正常"
+            if rt is not None:
+                rt.suspect_loaded = False   # 下轮 _suspect_load 重读 meta
+        finally:
+            if created:
+                with DB_LOCK:
+                    store.db.close()
+        return True, msg, 200
 
     def get_settings(self):
         with self.lock:
@@ -1037,6 +1345,11 @@ class Handler(BaseHTTPRequestHandler):
                         s["cap_resume_eta"] = oldest + CAP_WINDOW
             else:
                 s["today_gifts"] = 0
+            try:
+                s["suspects"] = suspect_rows(PANEL)
+            except Exception as e:             # 问询组装失败不拖垮整个 status
+                s["suspects"] = []
+                s["suspects_error"] = repr(e)[:120]
             return self._send_json(s)
         if path == "/api/settings":
             return self._send_json({"settings": PANEL.get_settings()})
@@ -1105,6 +1418,13 @@ class Handler(BaseHTTPRequestHandler):
                     or not isinstance(body.get("enabled"), bool)):
                 return self._send_json({"ok": False, "error": "bad json"}, 400)
             ok, msg, code = PANEL.toggle_account(body["userid"], body["enabled"])
+            return self._send_json({"ok": ok, "message": msg}, code)
+        if path == "/api/suspect/answer":
+            body = self._read_body_json()
+            if (not isinstance(body, dict) or not isinstance(body.get("userid"), str)
+                    or not isinstance(body.get("action"), str)):
+                return self._send_json({"ok": False, "error": "bad json"}, 400)
+            ok, msg, code = PANEL.answer_suspect(body["userid"], body["action"])
             return self._send_json({"ok": ok, "message": msg}, code)
         if path == "/api/stop":
             ok, msg = PANEL.stop()

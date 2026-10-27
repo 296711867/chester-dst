@@ -108,8 +108,9 @@ body{margin:0;overflow:hidden;color:var(--text);
              radial-gradient(820px 560px at 96% 104%,var(--glow2),transparent 60%),
              var(--bg)}
 .app{height:100vh;padding:16px;display:grid;gap:14px;
-  grid-template-columns:340px minmax(0,1fr);grid-template-rows:56px minmax(0,1fr)}
-.topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:8px 18px;flex-wrap:nowrap}
+  grid-template-columns:340px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:8px 18px;
+  flex-wrap:wrap;min-height:56px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand img{height:32px}
 .brand b{font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:.04em;white-space:nowrap}
@@ -205,6 +206,27 @@ label{color:var(--text-2);font-size:13px}
 .ref{font-size:12px;color:var(--text-2)}
 .chip{display:inline-block;background:var(--amber-soft);color:var(--amber);
   border-radius:999px;padding:1px 10px;font-size:12.5px;font-weight:600}
+/* ---- 疑似满仓 ---- */
+.dot.sus{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulseAmber 2s infinite}
+.dot.mut{background:transparent;border:2px solid var(--text-2)}
+@keyframes pulseAmber{50%{box-shadow:0 0 12px var(--amber)}}
+.schip{font-size:11px;padding:1px 7px;border-radius:10px;margin-right:5px;white-space:nowrap;font-weight:600}
+.schip.ask{background:var(--amber-soft);color:var(--amber)}
+.schip.mute{background:var(--muted-bg);color:var(--text-2)}
+#askBanner{flex-basis:100%;order:10;display:flex;align-items:center;gap:8px;
+  background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);
+  border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;
+  cursor:pointer;margin:0;flex-wrap:wrap;line-height:1.4}
+#askBanner[hidden]{display:none}
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;
+  align-items:center;justify-content:center;z-index:50}
+.mask[hidden]{display:none;visibility:hidden;pointer-events:none}
+.dlg{max-width:440px;width:calc(100% - 40px);padding:20px}
+.dlg h3{margin:0 0 10px;font-size:16px}
+.sus-body{font-size:13.5px;line-height:1.7}
+.sus-stuck{font-size:12.5px;color:var(--amber);margin-top:6px}
+.sus-note{font-size:12px;color:var(--text-2);margin-top:8px}
+.sus-btns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 .tblwrap{flex:1;min-height:0;overflow:auto;border-radius:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{position:sticky;top:0;background:var(--th-bg);color:var(--text-2);text-align:left;
@@ -301,6 +323,7 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
       <option value="forest" data-i18n="skin_forest"></option>
     </select></label>
     <button class="btn btn-ghost" id="langBtn" title="切换语言 / Switch language">EN</button>
+    <div id="askBanner" hidden></div>
 </header>
 
 <div class="col-l">
@@ -328,6 +351,11 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
     <div class="setrow"><label class="tgl"><input type="checkbox" id="set-capstop" data-i18n-aria="capstop" checked><i></i></label>
       <span class="t"><span data-i18n="capstop">领满即停</span>
       <span class="hint" data-i18n="capstop_hint"></span></span></div>
+    <div class="setrow"><label class="tgl"><input type="checkbox" id="set-susask" data-i18n-aria="sus_set" checked><i></i></label>
+      <span class="t"><span data-i18n="sus_set">疑似满仓问询</span>
+      <span class="hint" data-i18n="sus_set_hint"></span></span>
+      <input type="number" id="set-suspect-h" min="3" max="12" step="0.5" value="6" style="margin-left:auto;width:64px">
+      <span class="muted" style="font-size:12px" data-i18n="sus_hours_h"></span></div>
     <div class="setrow"><label class="tgl"><input type="checkbox" id="set-autobox" data-i18n-aria="autobox"><i></i></label>
       <span class="t"><img src="/assets/icons/mysterybox.png" alt="">
       <span data-i18n="autobox">自动开神秘箱</span>
@@ -400,6 +428,20 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
   </footer>
 </div>
 
+<div class="mask" id="susMask" hidden>
+  <div class="dlg card" role="dialog" aria-modal="true" aria-labelledby="susTitle">
+    <h3 id="susTitle"></h3>
+    <div class="sus-body" id="susBody"></div>
+    <div class="sus-stuck" id="susStuck" hidden></div>
+    <div class="sus-note" id="susNote"></div>
+    <div class="sus-btns">
+      <button class="btn btn-primary" id="susGo"></button>
+      <button class="btn btn-danger" id="susMuteBtn"></button>
+      <button class="btn btn-ghost" id="susLaterBtn"></button>
+    </div>
+  </div>
+</div>
+
 </div>
 <script>
 "use strict";
@@ -443,6 +485,15 @@ zh:{
   remove_confirm:"移除 %s?(数据目录保留,可重新添加)",
   remove_fail:"移除失败", remove_account:"移除该账号", toggle_fail:"切换失败", srv_down:"操作失败:面板服务无响应",
   last_ok:"正常", hours_h:"小时",
+  suspect_title:"疑似本周礼物已领满",
+  suspect_body:"账号「%a」已有效挂机 %h 小时(成功心跳 %n 次)未收到周礼(正常约 2 小时 1 个)。本周 8 个礼物可能已在面板外领满。",
+  suspect_stuck:"注意:期间有 %n 次心跳提示存在未开礼物——也可能是礼物卡在库存未打开,详见运行日志。",
+  suspect_timeout:"未作答将于约 %s 后自动按「继续挂机」处理",
+  suspect_go:"继续挂机", suspect_mute:"暂停该账号", suspect_later:"稍后提醒",
+  suspect_banner:"等待确认:%d 个账号疑似领满,已降频探测中,点击重新打开问询",
+  st_suspect:"疑似领满", st_suspect_mute:"低频探测",
+  sus_set:"疑似满仓问询", sus_set_hint:"超过 N 小时有效挂机无周礼时弹窗确认(默认 6)",
+  sus_hours_h:"小时",
   skin:"皮肤", skin_parchment:"饥荒官网", skin_orange:"橙白",
   skin_dark:"暮夜炭火", skin_winter:"冬青鎏金", skin_forge:"熔炉余烬",
   skin_lunar:"月白", skin_forest:"苔林"
@@ -480,6 +531,15 @@ en:{
   remove_confirm:"Remove %s? (data folder is kept, can re-add)",
   remove_fail:"Remove failed", remove_account:"Remove account", toggle_fail:"Toggle failed", srv_down:"Failed: panel service unreachable",
   last_ok:"ok", hours_h:"h",
+  suspect_title:"Weekly gifts may already be capped",
+  suspect_body:"Account \"%a\" has farmed %h effective hours (%n ok ticks) with no weekly gift (normal pace ~1 per 2h). All 8 weekly gifts may have been claimed outside this panel.",
+  suspect_stuck:"Note: %n heartbeats reported unopened items — gifts may just be stuck in inventory. See the logs.",
+  suspect_timeout:"With no answer this auto-continues in ~%s",
+  suspect_go:"Keep farming", suspect_mute:"Pause account", suspect_later:"Ask later",
+  suspect_banner:"Awaiting confirmation: %d account(s) suspected capped, probing at low rate — click to reopen",
+  st_suspect:"Suspected", st_suspect_mute:"Slow probe",
+  sus_set:"Cap-suspect ask", sus_set_hint:"popup after N effective hours with no weekly gift (default 6)",
+  sus_hours_h:"hours",
   skin:"Skin", skin_parchment:"Official", skin_orange:"Orange & White",
   skin_dark:"Ember Night", skin_winter:"Winter Gold", skin_forge:"Forge Embers",
   skin_lunar:"Moonlight", skin_forest:"Evergreen"
@@ -539,13 +599,14 @@ function setRows(tbl,rows,cols){
 var STATUS_META={
   ok:{cls:"run",key:"st_ok"},capped:{cls:"cap",key:"st_capped"},
   paused:{cls:"paused",key:"st_paused"},needs_login:{cls:"need",key:"st_need"},
-  disabled:{cls:"off",key:"st_disabled"},idle:{cls:"idle",key:"st_idle"}};
+  disabled:{cls:"off",key:"st_disabled"},idle:{cls:"idle",key:"st_idle"},
+  suspect:{cls:"sus",key:"st_suspect"},suspect_mute:{cls:"mut",key:"st_suspect_mute"}};
 var lastAccounts="";
 var lastAccountsData=null;
 
 function renderAccounts(accounts,force){
   var sig=lang+"|"+JSON.stringify((accounts||[]).map(function(a){
-    return [a.userid,a.alias,a.enabled,a.status,a.weekly,a.today]}));
+    return [a.userid,a.alias,a.enabled,a.status,a.weekly,a.today,a.suspect]}));
   if(sig===lastAccounts&&!force)return;
   lastAccounts=sig;
   var box=$("acctList");
@@ -558,12 +619,14 @@ function renderAccounts(accounts,force){
   accounts.forEach(function(a){
     var meta=STATUS_META[a.status]||STATUS_META.idle;
     var pct=Math.min(100,(a.weekly/8)*100);
+    var chip=a.suspect==="ask"?"<span class='schip ask'>"+esc(t("st_suspect"))+"</span>":
+             a.suspect==="mute"?"<span class='schip mute'>"+esc(t("st_suspect_mute"))+"</span>":"";
     html+="<div class='acct"+(a.enabled?"":" off")+"' data-uid='"+esc(a.userid)+"'>"+
       "<input type='checkbox' class='ck' aria-label='"+esc((a.alias||a.userid))+"'"+(a.enabled?" checked":"")+">"+
       "<span class='name'><span class='nm'>"+esc(a.alias||a.userid)+"</span></span>"+
       "<span class='stat'><span class='dot "+meta.cls+"'></span>"+esc(t(meta.key))+"</span>"+
       "<span class='ku'>"+esc(a.userid)+"</span>"+
-      "<span class='metrics'><span class='micro"+(a.weekly>=6?" near":"")+"'><i style='width:"+pct+"%'></i></span>"+
+      "<span class='metrics'>"+chip+"<span class='micro"+(a.weekly>=6?" near":"")+"'><i style='width:"+pct+"%'></i></span>"+
       a.weekly+"/8 · "+t("today")+a.today+
       "<svg viewBox='0 0 24 24' style='width:12px;height:12px;cursor:pointer;color:var(--text-2)' class='rm' role='img' "+
         "fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/></svg></span>"+
@@ -630,7 +693,7 @@ $("allBtn").addEventListener("click",function(){
 });
 function settingsFocused(){
   var el=document.activeElement;
-  return el&&(el===$("interval")||el===$("set-desc"));
+  return el&&(el===$("interval")||el===$("set-desc")||el===$("set-suspect-h"));
 }
 function fillSettings(st){
   if(settingsFocused())return;
@@ -639,6 +702,8 @@ function fillSettings(st){
   $("set-daily").checked=!!st.daily_gift;
   $("set-capstop").checked=!!st.cap_stop;
   $("set-autobox").checked=!!st.auto_box;
+  $("set-susask").checked=!!st.suspect_ask;
+  if(document.activeElement!==$("set-suspect-h"))$("set-suspect-h").value=st.suspect_hours||6;
   if(document.activeElement!==$("set-desc"))$("set-desc").value=st.desc||"";
 }
 function refreshStatus(){
@@ -681,6 +746,7 @@ function refreshStatus(){
       ref.textContent=t("ref_line");
     }
     fillSettings(st);
+    handleSuspects(s.suspects);
   }).catch(function(){});
 }
 function refreshData(){
@@ -768,6 +834,8 @@ $("saveSetBtn").addEventListener("click",function(){
     daily_gift:$("set-daily").checked,
     cap_stop:$("set-capstop").checked,
     auto_box:$("set-autobox").checked,
+    suspect_ask:$("set-susask").checked,
+    suspect_hours:parseFloat($("set-suspect-h").value)||6,
     desc:$("set-desc").value.trim()||"klei_panel"
   }).then(function(r){
     if(r.ok){note.style.color="var(--accent-fg)";note.textContent=t("saved");
@@ -778,6 +846,67 @@ $("saveSetBtn").addEventListener("click",function(){
     note.style.color="var(--err-fg)";note.textContent=t("save_fail");btn.disabled=false;
   });
 });
+/* ---------- 疑似满仓问询(3s 轮询驱动,无独立定时器) ---------- */
+var susCur=null;          // 当前弹窗 userid
+var susDismissed={};      // userid -> snooze 到期 epoch 秒(稍后提醒=10 分钟)
+function susClose(){$("susMask").hidden=true;susCur=null;}
+function susNoteUpdate(s){
+  if(!s)return;
+  var left=Math.max(0,Math.round((s.timeout_at-Date.now()/1000)/60));
+  $("susNote").textContent=t("suspect_timeout").replace("%s",left<=0?"<1 min":left+" min");
+}
+function susOpen(s){
+  susCur=s.userid;
+  $("susTitle").textContent=t("suspect_title");
+  $("susBody").textContent=t("suspect_body")
+    .split("%h").join((s.dry_h||0).toFixed(1))
+    .split("%n").join(String(s.dry_ticks||0))
+    .split("%a").join(s.alias||s.userid);
+  var st=$("susStuck");
+  if(s.stuck_unopened>0){st.hidden=false;
+    st.textContent=t("suspect_stuck").split("%n").join(String(s.stuck_unopened));}
+  else st.hidden=true;
+  susNoteUpdate(s);
+  $("susGo").textContent=t("suspect_go");
+  $("susMuteBtn").textContent=t("suspect_mute");
+  $("susLaterBtn").textContent=t("suspect_later");
+  $("susMask").hidden=false;
+}
+function susAnswer(action){
+  if(!susCur)return;
+  fetchJSON("/api/suspect/answer",{userid:susCur,action:action}).then(function(r){
+    if(!r.ok)alert(r.message||r.error||t("toggle_fail"));
+    susClose();refreshStatus();
+  }).catch(function(){alert(t("srv_down"))});
+}
+$("susGo").addEventListener("click",function(){susAnswer("continue")});
+$("susMuteBtn").addEventListener("click",function(){susAnswer("mute")});
+$("susLaterBtn").addEventListener("click",function(){
+  if(susCur)susDismissed[susCur]=Date.now()/1000+600;
+  susClose();
+});
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape"&&susCur){susDismissed[susCur]=Date.now()/1000+600;susClose();}
+});
+$("askBanner").addEventListener("click",function(){susDismissed={};});
+function handleSuspects(list){
+  list=list||[];
+  var banner=$("askBanner");
+  if(list.length){
+    banner.hidden=false;
+    banner.style.display="flex";   // 内联双保险:个别引擎对 [hidden] 不即时重排
+    banner.textContent="⏳ "+t("suspect_banner").replace("%d",list.length);
+  }else{banner.hidden=true;banner.style.display="none";}
+  if(susCur){
+    var mine=list.find(function(s){return s.userid===susCur});
+    if(!mine)susClose();        // 已应答/超时自动继续/礼物到 → 静默关闭
+    else susNoteUpdate(mine);   // 开着只刷新倒计时,不重开抢焦点
+  }
+  if(susCur)return;
+  var now=Date.now()/1000;
+  var cand=list.find(function(s){return !(susDismissed[s.userid]>now)});
+  if(cand)susOpen(cand);        // ask_ts 升序逐个弹(后端已排序)
+}
 applyLang();
 refreshStatus();refreshData();
 setInterval(refreshStatus,3000);
