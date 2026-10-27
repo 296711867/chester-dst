@@ -78,6 +78,7 @@ breaks (e.g. the owner plays DST elsewhere), only that account pauses — switch
 | [docs/协议-心跳与礼物.md](docs/协议-心跳与礼物.md) | Heartbeat / gift protocol |
 | [docs/多账号路线图.md](docs/多账号路线图.md) | Multi-account design (L0/L1/L2 fallback) |
 | [docs/协议-服务器查询.md](docs/协议-服务器查询.md) | Server browser reverse engineering + `dst_servers.py` tool |
+| [docs/协议-Klei接口总表.md](docs/协议-Klei接口总表.md) | Full Klei endpoint catalog mined from the client |
 | [docs/情报-社区与SDK调研_2026-10-26.md](docs/情报-社区与SDK调研_2026-10-26.md) | SDK signature evolution, SteamKit2, community intel |
 
 ## 🧾 Changelog (abridged)
