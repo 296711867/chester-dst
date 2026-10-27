@@ -47,7 +47,11 @@ DEFAULT_INTERVAL = 360          # 游戏内累加周期（秒），C 层 float 3
 TOKEN_LIFETIME = 60 * 60        # LoginViaSteam token 时长（实测 3605s）
 REFRESH_EARLY = 5 * 60          # 到期前 N 秒续期
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+# 打包(PyInstaller)模式:凭证/数据库放 exe 旁(临时解包目录退出即清,不可用)
+if getattr(sys, "frozen", False):
+    HERE = os.path.dirname(sys.executable)
+else:
+    HERE = os.path.dirname(os.path.abspath(__file__))
 SECRETS_DIR = os.path.join(HERE, "credentials")   # 凭证目录（已被 .gitignore 排除）
 os.makedirs(SECRETS_DIR, exist_ok=True)
 

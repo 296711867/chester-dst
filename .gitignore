@@ -22,3 +22,9 @@ _v2_*.png
 _check_*.png
 _checklist_*.html
 _rar_*.png
+
+# ── 构建产物 ──
+dist/
+build/
+*.exe
+_exe*.log

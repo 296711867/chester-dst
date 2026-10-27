@@ -81,7 +81,23 @@ python klei_heartbeat_auto.py --once   :: 命令行单轮测试
 ⚠️ 面板与黑窗口 bat **不要同时开**(互相顶掉 token);换 Steam 账号前先删
 `credentials\.hb_auto_session.json` 与 `credentials\accounts\` 旧目录。
 
-## 3. 脚本与运行模式
+## 3. 打包成 exe(可选)
+
+不想装 Python?一条命令打成单文件 exe(双击即启动面板并自动打开浏览器):
+
+```bash
+pip install pyinstaller
+python -m PyInstaller --onefile --name Chester --icon icon.ico --add-data "web;web" klei_panel.py
+```
+
+产物在 `dist\Chester.exe`(约 26 MB,已内置 Python 运行时与全部网页资源)。注意事项:
+
+- 账号数据库/会话/设置生成在 **exe 同目录**(`credentials\` 与 `panel_*.json`),整个文件夹随便搬;
+- 重登录(添加账号)需要 Steam 在线;若 exe 旁放一份 `steam_api64.dll`(或 `dst\steam_api64.dll`)会被自动找到;
+- 单文件 exe 首次启动需自解压,个别杀软可能误报,加白名单即可;
+- 想发布:把 exe 挂到 GitHub Releases 即可,仓库本体不必入库构建产物。
+
+## 4. 脚本与运行模式
 
 | 入口 | 什么时候用 |
 |---|---|
@@ -95,7 +111,7 @@ python klei_heartbeat_auto.py --once   :: 命令行单轮测试
 常用参数:`--once` 只跑一轮 · `--interval N` 心跳间隔(默认 360,下限 30 强制,防风控别调快)
 · `--dll PATH` 指定 steam_api64.dll · `--no-logfile` 不落盘日志 · `--token FILE`/`--save FILE` 复用/保存会话。
 
-## 4. 读懂日志
+## 5. 读懂日志
 
 日志位置:`credentials\hb_auto_console.log`(面板另有 SQLite 记录)。关键行:
 
@@ -108,7 +124,7 @@ python klei_heartbeat_auto.py --once   :: 命令行单轮测试
 | `检测到未开礼物,自动清理 Context=3 队列` | 自动开积压礼,不是错误 |
 | `Tick 网络错误: NETERR: …` | 断网,下轮自动重试 |
 
-## 5. 故障排查(速查)
+## 6. 故障排查(速查)
 
 | 现象 | 动作 |
 |---|---|
@@ -120,7 +136,7 @@ python klei_heartbeat_auto.py --once   :: 命令行单轮测试
 
 完整 13 条矩阵(可 Ctrl+F 日志关键词):[挂机指南.html 第 6 章](挂机指南.html)。
 
-## 6. 文件与目录说明
+## 7. 文件与目录说明
 
 ```
 chester\
@@ -150,7 +166,7 @@ chester\
    └─ .hb_auto_session.json      旧单账号会话(面板会自动接管迁移)
 ```
 
-## 7. 协议参考(速查)
+## 8. 协议参考(速查)
 
 ### 认证(login.kleientertainment.com)
 | 端点 | body | 响应要点 |
@@ -181,7 +197,7 @@ identity 指针,且 Klei 走 `ISteamUserAuth/AuthenticateUserTicket` 验票,绑�
 - 间隔默认 360s 对齐游戏行为;社区实测缩短间隔可加速出礼(4-5h→1h)但属加速行为,风控自担;
 - 交叉验证:皮肤即 Steam 物品,`steamcommunity.com/inventory/<steamid>/322330/2`。
 
-## 8. 安全与合规
+## 9. 安全与合规
 
 - Token=你 Steam 账号的 Klei 登录凭证,60 分钟自过期,仍勿外传;`credentials\` 整目录(会话/日志/账号库)
   已被 `.gitignore` 排除,不要发布;
@@ -195,7 +211,7 @@ identity 指针,且 Klei 走 `ISteamUserAuth/AuthenticateUserTicket` 验票,绑�
   全皮肤名称/图标数据库来自 [dst-skins-checklist](https://dst-skins-checklist.github.io/)(2953 件,
   原码→英文名/收藏组/稀有度+图标),致谢该开源项目。
 
-## 9. 多账号挂机(面板已支持)
+## 10. 多账号挂机(面板已支持)
 
 面板「添加账号」= 人肉环节:先把 Steam 客户端**切换登录**到目标账号 → 点添加(面板代为登录并存档会话)
 → 勾选启用 → 开始挂机;之后该账号日常走 token 链式续期,纯 HTTP,不再需要 Steam 在场。
@@ -203,13 +219,13 @@ worker 每轮顺序处理所有启用账号(账号间错峰 3 秒),领满/暂停
 账号不符(Steam 停在别的账号)只暂停该账号,切号后在面板把该账号关→开即重试。
 每账号独立 SQLite 数据库(credentials\accounts\KU_…\)。详见 [docs/多账号路线图.md](docs/多账号路线图.md)。
 
-## 10. FAQ
+## 11. FAQ
 
 - **能和游戏同时开?** 能,实测 6+ 次无冲突(会话追加式);但面板与黑窗口 bat 别同时开。
 - **几天没礼物正常?** 正常(约 2 小时一个、周上限 8;或电脑睡眠了)。
 - **会被封?** 未知;低频同构请求,风险自担。
 
-## 11. 附录
+## 12. 附录
 
 ### 11.1 研究笔记索引
 `docs\协议-登录与会话.md`(C 层登录还原+脚本实现对照)、`docs\协议-心跳与礼物.md`(Tick 协议)、

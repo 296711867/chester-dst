@@ -43,13 +43,18 @@ TICKET_SIZE = 0x800
 
 # ---------------------------------------------------------------- steam_api 调用
 def find_steam_dll():
-    """按 脚本目录 → 上级 → 上级/dst 顺序查找 steam_api64.dll。"""
+    """按 脚本目录 → 上级 → 上级/dst 顺序查找 steam_api64.dll;
+    打包(PyInstaller)模式下额外尝试 exe 所在目录及其 dst 子目录。"""
     here = os.path.dirname(os.path.abspath(__file__))
-    for d in (here, os.path.dirname(here), os.path.join(os.path.dirname(here), "dst")):
+    cands = [here, os.path.dirname(here), os.path.join(os.path.dirname(here), "dst")]
+    if getattr(sys, "frozen", False):
+        exedir = os.path.dirname(sys.executable)
+        cands = [exedir, os.path.join(exedir, "dst")] + cands
+    for d in cands:
         p = os.path.join(d, "steam_api64.dll")
         if os.path.exists(p):
             return p
-    return os.path.join(here, "steam_api64.dll")
+    return os.path.join(cands[0], "steam_api64.dll")
 
 
 class SteamAPIBridge:

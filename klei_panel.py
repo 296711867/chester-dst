@@ -32,6 +32,7 @@ klei_panel.py — Chester·饥荒礼物箱 本地控制面板(v5):多账号勾�
 
 import argparse
 import json
+import sys
 import os
 import sqlite3
 import threading
@@ -43,8 +44,13 @@ import klei_steam_login as K
 import klei_heartbeat as HB
 import klei_open_gifts as OG
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-WEB_DIR = os.path.join(HERE, "web")
+# 打包(PyInstaller)模式:可写数据放 exe 旁,只读资源(web/)在解包目录
+if getattr(sys, "frozen", False):
+    HERE = os.path.dirname(sys.executable)
+    WEB_DIR = os.path.join(getattr(sys, "_MEIPASS", HERE), "web")
+else:
+    HERE = os.path.dirname(os.path.abspath(__file__))
+    WEB_DIR = os.path.join(HERE, "web")
 ACCOUNTS_DIR = os.path.join(HB.SECRETS_DIR, "accounts")
 LEGACY_SESSION = os.path.join(HB.SECRETS_DIR, ".hb_auto_session.json")
 
