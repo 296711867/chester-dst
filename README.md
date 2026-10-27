@@ -4,6 +4,8 @@
 
 **不开游戏,挂着自动收《饥荒联机版》每周礼物**
 
+**中文** | [**English**](README.en.md)
+
 *You adventure in the waking world. Chester keeps the gifts.*
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
@@ -251,23 +253,3 @@ worker 每轮顺序处理所有启用账号(账号间错峰 3 秒),领满/暂停
 - v1.1e 10-26:皮肤系统(6 套主题:饥荒官网明亮=默认/暗夜营地/冬季盛宴/熔炉/月色/常青森林)
 - v1.1f 10-27:配色全面重设计+新增橙白,7 套皮肤;稀有度配色;全皮肤数据库 2953 件(图标/中文名/稀有度)接入面板
 - **v1.2 10-26:项目更名 Chester(切斯特)**;视觉验收轮优化(品牌标/favicon/切换过渡)
-
-
----
-
-## English summary
-
-**Chester** is a background companion for *Don't Starve Together*: it logs into your Klei account
-with a Steam session ticket (no game launch), sends a heartbeat every 360 s, claims weekly skin
-gifts automatically (8/week cap with auto-pause), and keeps one SQLite database per account.
-
-- **Web panel** (Chinese/English, 6 themes, game icons): run `启动控制面板.bat` or
-  `python klei_panel.py`, then open `http://127.0.0.1:8377`.
-- **Adding an account** (manual, once per account): switch the Steam client to that account,
-  click *Add account* in the panel. Afterwards it renews tokens over pure HTTP — no Steam needed.
-- **Requirements**: Windows x64, 64-bit Python 3.8+ (standard library only), Steam client signed in.
-- Full guide: `挂机指南.html`. Protocol/design docs live in `docs/` (Chinese).
-
-> ⚠️ Not affiliated with Klei Entertainment. Automating gift collection may violate the game's
-> Terms of Service — use at your own risk, for personal and educational purposes only.
-> Game icons shown in the UI are © Klei Entertainment, used as non-commercial identifiers.
