@@ -29,6 +29,7 @@ import ctypes.wintypes as w
 import json
 import os
 import ssl
+import sys
 import time
 import urllib.request
 import urllib.error

@@ -5,7 +5,7 @@ a = Analysis(
     ['klei_panel.py'],
     pathex=[],
     binaries=[],
-    datas=[('web', 'web')],
+    datas=[('web', 'web'), ('../dst/steam_api64.dll', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
