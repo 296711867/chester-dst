@@ -154,6 +154,7 @@ chester\
 ├─ klei_heartbeat.py        共享 HTTP/tick/日志/登录(库+CLI)
 ├─ klei_heartbeat_auto.py   常驻心跳+领礼(黑窗口模式)
 ├─ klei_open_gifts.py       开礼工具
+├─ dst_servers.py           在线服务器查询(接口逆向,见 docs\协议-服务器查询.md)
 ├─ _probe_ticket.py         票据诊断
 ├─ docs\
 │  ├─ 协议-登录与会话.md       C 层登录全流程还原+实现对照+Token寿命
@@ -230,7 +231,7 @@ worker 每轮顺序处理所有启用账号(账号间错峰 3 秒),领满/暂停
 ### 11.1 研究笔记索引
 `docs\协议-登录与会话.md`(C 层登录还原+脚本实现对照)、`docs\协议-心跳与礼物.md`(Tick 协议)、
 `docs\附录-礼物机制分层笔记.md`、`docs\附录-会话转录-礼物机制.md`(原始材料)、
-`docs\情报-社区与SDK调研_2026-10-26.md`。
+`docs\情报-社区与SDK调研_2026-10-26.md`、`docs\协议-服务器查询.md`(服务器浏览逆向)。
 
 ### 11.2 C 层关键地址速查(dontstarve_steam_x64.exe,image base 0x140000000)
 | 项 | VA |
