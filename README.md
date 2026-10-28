@@ -30,6 +30,8 @@
 | | |
 |---|---|
 | 🎁 **自动收周礼** | 每 360 秒向 Klei 心跳一次;礼物自动回执、开箱、入账,周上限 8/8 领满即停 |
+| 🌅 **每日礼状态一目了然** | 每账号"已领/待领/探测中"实时展示(滚动 24h 口径),下轮自动领不用管 |
+| 🤖 **本地 API·AI 可接管** | `/api/automation` 一次拿全量状态+待办清单,定时任务照单执行即可 |
 | 🌙 **不开游戏** | 借 Steam 会话票据登录,日常只走纯 HTTP——连 Steam 客户端都不用开 |
 | 👥 **多账号勾选挂机** | 每账号一次 Steam 切号+点添加;之后勾选即挂,账号间自动错峰,独立数据库 |
 | 🖼️ **3392 件皮肤图鉴** | 礼物自动配游戏图标、官方英文名、中文名、稀有度配色(数据来自 dst-skins-checklist) |
@@ -214,6 +216,32 @@ identity 指针,且 Klei 走 `ISteamUserAuth/AuthenticateUserTicket` 验票,绑�
 面板只能按启发式判断:**有效挂机干燥期 = 距上次周礼(或首个成功心跳)的成功心跳数 × 6 分钟**,
 不看墙钟——电脑睡眠/断网/面板关闭期间服务端进度不走,干燥期自动冻结,不会误报。
 
+### 本地 API 与 AI 自动化(2026-10-28 起)
+
+面板在 `http://127.0.0.1:8377` 提供机器可读接口,供脚本/AI 定时任务管理(仅本机回环):
+
+| 端点 | 用途 |
+|---|---|
+| `GET /api/automation` | **AI 一步到位**:running/pending_actions/每账号周礼与每日礼状态/聚合/最近礼物/可用动作 |
+| `GET /api/accounts` | 账号明细(含 `daily` 状态块:state/last_claim_ts/next_eligible_ts/retry_ts) |
+| `GET /api/gifts?since=<unix>&source=tick,daily,box&account=<userid>&limit=&offset=` | 礼物历史查询(宽松解析+filters 回显,供对账) |
+| `POST /api/start` / `POST /api/stop` / `POST /api/quit` | 开始挂机(可带 `{"interval":N}`)/停止挂机/退出程序 |
+| `POST /api/settings` / `POST /api/accounts/toggle` / `POST /api/suspect/answer` | 设置/账号启停/问询应答 |
+
+`pending_actions` 决策表(AI/定时任务照单执行):
+
+| 看到 | 该做 |
+|---|---|
+| `"start"`(未运行且有启用账号) | `POST /api/start` |
+| `"login"`(账号缺会话) | 提醒人工切 Steam 重新添加(API 代劳不了) |
+| `"resume_paused"`(账号因 Steam 不符暂停) | 人工切回该 Steam 号后 `POST /api/accounts/toggle` 关→开重试 |
+| `"confirm_suspect"`(有问询待答) | `POST /api/suspect/answer` |
+| 运行中且 `daily.due_n>0` **且每日礼开关开**(`daily.setting_enabled`) | 什么都不做(下轮心跳自动领) |
+
+每日礼口径:`claimed`=滚动 24h 内已领 · `probing`=服务器答暂无(约每 2h 自动探测) · `due`=到点/无记录(下轮自动领)。
+"已领"唯一可信源是本地礼物流水(每笔领取落 SQLite);**Klei 无礼物历史端点**(exe 字符串挖掘+接口总表双证,
+Items[].Modified 因编织/交易同样刷新不可用),面板外的领取不可见,新账号显示"无记录"而非"从未领过"。
+
 - 默认 **6 小时有效挂机无周礼** → 判"疑似领满",弹窗问询:「继续挂机」/「暂停该账号」/「稍后提醒」;
 - 问询挂起中该账号降频探测(30 分钟一跳),**30 分钟无人应答自动按"继续"**(缺席不坏事);
 - 选「继续」→ 恢复全速,24h 内不再重复问;选「暂停该账号」→ 2 小时一跳低频探测,
@@ -304,4 +332,8 @@ worker 每轮顺序处理所有启用账号(账号间错峰 3 秒),领满/暂停
   右键菜单(状态行/打开面板/数据目录/运行日志/开机自启/退出),左键开面板;单实例互斥体+端口分流
   (自家人转交/外人报错,退出码 0/2/3);windowed 日志落 `_run.log`;`/api/quit` 端点;退出时序收敛
   (停接收→停 worker→关监听→删图标);explorer 重启图标自动重挂;测试 +23 例(test_tray)
+- **v1.4 10-28:每日礼/周礼状态 + AI 自动化 API**——逆向实证 Klei 无礼物历史端点(exe 字符串挖掘);
+  每账号每日礼状态(claimed/probing/due,信本地流水不信章,面板外领取不可见);账号行每日 chip+顶部第 4 卡;
+  `GET /api/automation` 决策文档(pending_actions 照单执行);`/api/gifts` 查询参数(since/source/account/
+  limit/offset,过滤下推 SQL);周礼卡改"滚动7天"口径+多账号已领满副行;测试 +24 例(test_daily_status)
 - **v1.2 10-26:项目更名 Chester(切斯特)**;视觉验收轮优化(品牌标/favicon/切换过渡)

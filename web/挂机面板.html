@@ -180,7 +180,7 @@ label{color:var(--text-2);font-size:13px}
 .acct .ku{grid-column:2;font-family:var(--mono);font-size:11.5px;color:var(--text-2)}
 .acct .stat{grid-row:1;grid-column:3;display:flex;align-items:center;gap:6px;
   font-size:12px;color:var(--text-2);white-space:nowrap}
-.acct .metrics{grid-column:2 / span 2;display:flex;align-items:center;gap:8px;
+.acct .metrics{grid-column:2 / span 2;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   font-size:12px;color:var(--text-2);font-family:var(--mono)}
 .acct .rowerr{grid-column:1/-1;color:var(--err-fg);font-size:12px;display:none}
 .acct.off{opacity:.5}
@@ -195,7 +195,7 @@ label{color:var(--text-2);font-size:13px}
 .setfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
 #set-note{font-size:12.5px;min-width:60px}
 .timing{font-size:11px;color:var(--text-2);margin-top:6px}
-.prog-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;align-items:center}
+.prog-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px;align-items:center}
 .prog .k{font-size:12px;color:var(--text-2);margin-bottom:4px}
 .prog .v{font-family:var(--display);font-size:24px;font-variant-numeric:tabular-nums}
 .prog .v small{font-size:13px;color:var(--text-2);font-family:system-ui,"Microsoft YaHei",sans-serif}
@@ -213,6 +213,11 @@ label{color:var(--text-2);font-size:13px}
 .schip{font-size:11px;padding:1px 7px;border-radius:10px;margin-right:5px;white-space:nowrap;font-weight:600}
 .schip.ask{background:var(--amber-soft);color:var(--amber)}
 .schip.mute{background:var(--muted-bg);color:var(--text-2)}
+/* ---- 每日礼 chip ---- */
+.dchip{font-size:11px;padding:1px 7px;border-radius:10px;margin-left:6px;white-space:nowrap;font-weight:600}
+.dchip.claimed{background:var(--muted-bg);color:var(--ok)}
+.dchip.due{background:var(--amber-soft);color:var(--amber)}
+.dchip.probing,.dchip.norec{background:var(--muted-bg);color:var(--text-2)}
 #askBanner{flex-basis:100%;order:10;display:flex;align-items:center;gap:8px;
   background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);
   border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;
@@ -286,7 +291,7 @@ footer{font-size:11.5px;color:var(--text-2);text-align:center;padding:2px 0 0}
   .col-l,.col-r{grid-template-rows:none}
   .topbar{flex-wrap:wrap;height:auto}
   .acct-list{max-height:320px}
-  .prog-grid{grid-template-columns:1fr}
+  .prog-grid{grid-template-columns:1fr 1fr}
   .tblwrap{max-height:320px}
 }
 body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .35s ease,color .35s ease,border-color .35s ease}
@@ -377,12 +382,18 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
         <div class="k" data-i18n="weekly_k"></div>
         <div class="v"><span id="week-sum">0</span><small> / <span id="week-cap">0</span></small></div>
         <div class="bigbar"><i id="weekfill" style="width:0%"></i></div>
+        <div class="ref" id="weekref"></div>
       </div>
       <div class="prog">
         <div class="k"><img src="/assets/icons/gift.png" alt="" style="width:16px;height:16px;vertical-align:-3px">
           <span data-i18n="today_k"></span></div>
         <div class="v" id="today-sum">0</div>
         <div class="ref" id="etaref"></div>
+      </div>
+      <div class="prog">
+        <div class="k" data-i18n="daily_k"></div>
+        <div class="v"><span id="daily-sum">0</span><small> / <span id="daily-n">0</span></small></div>
+        <div class="ref" id="dailyref"></div>
       </div>
       <div class="prog">
         <div class="k" data-i18n="ticks_k"></div>
@@ -466,7 +477,7 @@ zh:{
   desc:"主机描述",
   timing:"除描述下次登录生效外,其余保存后下一轮心跳生效",
   save:"保存设置", saving:"保存中…", saved:"已保存 ✓", save_fail:"保存失败,请重试",
-  weekly_k:"本周周礼(启用账号合计)", today_k:"今日礼物", ticks_k:"会话心跳",
+  weekly_k:"周礼(滚动7天·启用账号合计)", today_k:"今日到账(全部来源)", ticks_k:"会话心跳",
   ok:"成功", failed:"失败", uptime:"已运行", last:"最近",
   ref_line:"参考:社区经验约 2 小时出 1 个",
   eta_line:"⏳ 领满暂停,预计恢复:", eta_hours:"(约 ", eta_hours2:" 小时后)",
@@ -474,6 +485,15 @@ zh:{
   th_time:"时间", th_gift:"礼物", th_id:"编号", th_source:"来源", th_account:"账号",
   th_result:"结果", th_kind:"类型", th_detail:"详情",
   src_tick:"周礼", src_daily:"每日礼", src_box:"神秘箱",
+  daily_k:"每日礼(滚动24h)", daily_next:"最早可领 ", daily_all:"全部已领,最早 ",
+  daily_again:" 再领", daily_stopped:"(面板未运行,不会自动领取)", daily_off_short:"每日礼已关闭",
+  daily_c:"已领 %s", daily_due:"待领", daily_none:"暂无 %s", daily_norec:"无记录", daily_closed:"已关",
+  daily_tip_claimed:"每日礼本轮已领,滚动24h约 %t 后可再领(以服务器为准)",
+  daily_tip_due:"滚动点已到,可领取" ,
+  daily_tip_none:"服务器暂无每日礼,约 %t 再探(约每 2h 一探)",
+  daily_tip_norec:"本面板尚无该账号每日礼记录(面板外的领取不可见),运行后将自动尝试",
+  daily_tip_off:"全局设置已关闭每日登录礼",
+  week_capped_n:"已领满 %c/%N 个账号",
   logs:"运行日志", cur_acct:"当前账号", ticks2:"心跳", events:"事件",
   tab_hb:"心跳流水", tab_ev:"事件",
   footer1:"Chester 是你的随行礼物箱 · 详细教程见根目录 挂机指南.html · 只监听 127.0.0.1,不含任何 token",
@@ -512,7 +532,7 @@ en:{
   desc:"Host desc",
   timing:"Except host desc (next login), settings apply from the next round",
   save:"Save", saving:"Saving…", saved:"Saved ✓", save_fail:"Save failed, retry",
-  weekly_k:"Weekly gifts (enabled total)", today_k:"Today", ticks_k:"Session ticks",
+  weekly_k:"Weekly gifts (rolling 7d · enabled total)", today_k:"Today (all sources)", ticks_k:"Session ticks",
   ok:"ok", failed:"failed", uptime:"Uptime", last:"Last",
   ref_line:"Reference: ~2 hours per gift (community experience)",
   eta_line:"Capped — resumes:", eta_hours:"(~", eta_hours2:"h later)",
@@ -520,6 +540,15 @@ en:{
   th_time:"Time", th_gift:"Gift", th_id:"ID", th_source:"Source", th_account:"Account",
   th_result:"Result", th_kind:"Kind", th_detail:"Detail",
   src_tick:"Weekly", src_daily:"Daily", src_box:"Box",
+  daily_k:"Daily (24h rolling)", daily_next:"next claim ", daily_all:"all claimed, next ",
+  daily_again:"", daily_stopped:"(panel idle — no auto claim)", daily_off_short:"Daily gift off",
+  daily_c:"got %s", daily_due:"due", daily_none:"none %s", daily_norec:"no data", daily_closed:"off",
+  daily_tip_claimed:"Daily claimed this cycle; next claim ~%t (server-authoritative)",
+  daily_tip_due:"Rolling window elapsed, claimable",
+  daily_tip_none:"Server says none yet; probe ~%t (every ~2h)",
+  daily_tip_norec:"No daily-gift record for this account (claims outside this panel are invisible); auto-tries when running",
+  daily_tip_off:"Daily gift disabled in global settings",
+  week_capped_n:"%c/%N accounts capped",
   logs:"Logs", cur_acct:"current acct", ticks2:"ticks", events:"events",
   tab_hb:"Heartbeats", tab_ev:"Events",
   footer1:"Full guide: 挂机指南.html in project root · Panel listens on 127.0.0.1 only, contains no tokens",
@@ -585,6 +614,26 @@ function fmtTs(ts){if(!ts)return"—";var d=new Date(ts*1000);
   return p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds())}
 function fmtDur(s){s=Math.max(0,s|0);var h=(s/3600)|0,m=((s%3600)/60)|0,x=s%60;
   return (h?h+(lang==="zh"?"小时":"h"):"")+(m?m+(lang==="zh"?"分":"m"):"")+x+(lang==="zh"?"秒":"s")}
+function fmtRel(s){s=Math.max(0,s|0);var h=s/3600;   /* 相对时长(每日礼 chip 用):~3.2小时/~25分 */
+  if(h>=1)return "~"+(Math.round(h*10)/10)+(lang==="zh"?"小时":"h");
+  return "~"+Math.max(1,(s/60)|0)+(lang==="zh"?"分":"m")}
+function nowSec(){return Date.now()/1000}
+var panelRunning=false,panelDailyOn=true;
+function dailyChip(a){   /* 账号行每日礼状态 chip:滚动点本身是估计值,chip 只放相对时间 */
+  var d=a.daily; if(!d||!d.state)return "";
+  var now=nowSec(),txt,tip,cls=d.state;
+  if(!panelDailyOn){txt=t("daily_closed");tip=t("daily_tip_off");cls="norec";}
+  else if(d.state==="claimed"){
+    txt=t("daily_c").replace("%s",fmtRel(d.next_eligible_ts-now));
+    tip=t("daily_tip_claimed").replace("%t",fmtTs(d.next_eligible_ts));}
+  else if(d.state==="probing"){
+    txt=t("daily_none").replace("%s",fmtRel((d.retry_ts||now)-now));
+    tip=t("daily_tip_none").replace("%t",fmtTs(d.retry_ts));}
+  else if(!d.has_record){txt=t("daily_norec");tip=t("daily_tip_norec");cls="norec";}
+  else{txt=t("daily_due");
+    tip=t("daily_tip_due")+(panelRunning?"":" · "+t("daily_stopped"));}
+  return "<span class='dchip "+cls+"' title='"+esc(tip)+"'>"+esc(txt)+"</span>";
+}
 function fetchJSON(path,opts){
   return fetch(path,opts?{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify(opts)}:undefined).then(function(r){return r.json()});
@@ -606,7 +655,9 @@ var lastAccountsData=null;
 
 function renderAccounts(accounts,force){
   var sig=lang+"|"+JSON.stringify((accounts||[]).map(function(a){
-    return [a.userid,a.alias,a.enabled,a.status,a.weekly,a.today,a.suspect]}));
+    return [a.userid,a.alias,a.enabled,a.status,a.weekly,a.today,a.suspect,
+      a.daily&&[a.daily.state,a.daily.has_record,a.daily.next_eligible_ts,a.daily.retry_ts],
+      panelRunning,panelDailyOn]}));
   if(sig===lastAccounts&&!force)return;
   lastAccounts=sig;
   var box=$("acctList");
@@ -627,7 +678,7 @@ function renderAccounts(accounts,force){
       "<span class='stat'><span class='dot "+meta.cls+"'></span>"+esc(t(meta.key))+"</span>"+
       "<span class='ku'>"+esc(a.userid)+"</span>"+
       "<span class='metrics'>"+chip+"<span class='micro"+(a.weekly>=6?" near":"")+"'><i style='width:"+pct+"%'></i></span>"+
-      a.weekly+"/8 · "+t("today")+a.today+
+      a.weekly+"/8 · "+t("today")+a.today+dailyChip(a)+
       "<svg viewBox='0 0 24 24' style='width:12px;height:12px;cursor:pointer;color:var(--text-2)' class='rm' role='img' "+
         "fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/></svg></span>"+
       "<span class='rowerr'></span></div>";
@@ -708,6 +759,8 @@ function fillSettings(st){
 }
 function refreshStatus(){
   fetchJSON("/api/status").then(function(s){
+    panelRunning=!!s.running;
+    panelDailyOn=((s.settings||{}).daily_gift!==false);
     fetchJSON("/api/accounts").then(function(d){
       lastAccountsData=d.accounts||[];
       renderAccounts(lastAccountsData);
@@ -718,6 +771,31 @@ function refreshStatus(){
       $("week-sum").textContent=wk;$("week-cap").textContent=cap;
       $("weekfill").style.width=Math.min(100,wk/cap*100)+"%";
       $("today-sum").textContent=td;
+      /* 每日礼卡:X=滚动24h内已领的启用账号数,Y=启用账号数(与周礼分母同宇宙) */
+      var dcl=enabled.filter(function(a){return a.daily&&a.daily.state==="claimed"});
+      $("daily-sum").textContent=dcl.length;
+      $("daily-n").textContent=enabled.length;
+      var dref=$("dailyref"),earliest=null,anyDue=false,nws=nowSec();
+      enabled.forEach(function(a){
+        if(!a.daily)return;
+        if(a.daily.state!=="claimed")anyDue=true;
+        var tt=a.daily.next_eligible_ts||a.daily.retry_ts;
+        if(tt&&tt>nws&&(earliest===null||tt<earliest))earliest=tt;});
+      if(!panelDailyOn)dref.textContent=t("daily_off_short");
+      else if(!enabled.length)dref.textContent="—";
+      else if(dcl.length===enabled.length)
+        dref.textContent=t("daily_all")+fmtTs(earliest)+t("daily_again");
+      else{
+        dref.textContent=t("daily_next")+fmtTs(earliest)+
+          (panelRunning?"":" "+t("daily_stopped"));
+        if(!panelRunning&&anyDue)dref.title=t("daily_stopped");else dref.title="";
+      }
+      /* 周礼卡副行:多账号时显示已领满数(单账号留空) */
+      var wref=$("weekref");
+      if(enabled.length>1){
+        var capped=enabled.filter(function(a){return (a.weekly||0)>=(s.weekly_cap||8)}).length;
+        wref.textContent=t("week_capped_n").replace("%c",capped).replace("%N",enabled.length);
+      }else wref.textContent="";
       var paused=lastAccountsData.filter(function(a){return a.status==="paused"}).length;
       $("summary").textContent=enabled.length+t("enabled_n")+" · "+t("week")+wk+"/"+cap+
         " · "+t("today")+td+

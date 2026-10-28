@@ -173,6 +173,15 @@ POST /clientitems/DST/OpenMysteryBox
 | `/ReportUnknownItemType` | 未知物品上报(客户端自检) |
 | `/ReportMission/{CROW,REDBIRD,SNOWBIRD,CROWKID}_GAME` | 打鸟小任务上报(任务链换皮肤) |
 
+### 2.8 礼物获取历史:不存在(2026-10-28 逆向实证)
+
+Klei **没有任何"礼物获取历史/掉落记录"端点**。证据:①clientitems 全家桶如上,无 History 类路径;
+②`dontstarve_steam_x64.exe` 全字符串挖掘,所有 History 命中均无关(TransformationHistory=网络插值/
+PartyChatHistory=聊天/Entitlements=Twitch 权益系),无 GiftHistory/ItemHistory 端点——客户端只能调它
+认识的接口,故服务端不提供。`GetAllItems` 的 `Items[].Modified`(unix 秒)也不能当获取时间用:
+编织 `/Swap`、交易、神秘箱开出同样刷新 Modified,无法区分礼物获取。结论:历史只能本地攒
+(Chester 每账号 SQLite gifts 表即本地史);"面板外领取"协议层不可见,只能启发式(见 README 疑似满仓)。
+
 ---
 
 ## 3. 服务器大厅(lobby-v2)

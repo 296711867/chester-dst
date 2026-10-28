@@ -38,6 +38,7 @@ import os
 import sqlite3
 import threading
 import time
+import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -66,6 +67,7 @@ MAX_OPEN_CHAIN = 200           # 与 klei_open_gifts.MAX_CHAIN 对齐
 MAX_BOX_PER_ROUND = 50         # 单轮自动开神秘箱上限
 DAILY_QUIET_S = 4 * 3600       # 每日礼领取成功后的静默(服务器 24h 滚动,之后 2h 一探)
 DAILY_RETRY_S = 2 * 3600       # 每日礼"暂无/已领"后的短冷却(滚动点过后自动补领)
+DAILY_ROLL_S = 24 * 3600       # 服务器滚动窗口(实证口径;展示/AI 用它估"下次可领",带"约")
 
 # ---- 疑似满仓监控(面板外已领的周礼协议层查不到,只能按有效挂机干燥期启发式判断) ----
 TICK_EFFECTIVE_S = 360             # 1 个成功 tick ≈ 服务端 6 分钟有效游玩(协议事实)
@@ -463,6 +465,21 @@ class AccountStore:
         with DB_LOCK:
             return self.db.execute(q, a).fetchone()[0]
 
+    def gifts_query(self, since=None, sources=None, limit=50):
+        """AI/面板通用的礼物查询:过滤下推 SQL(稀疏 source 在内存过滤会漏历史)。
+        按语义键 ts 排序(生产中 id 序≈ts 序,但查询接口不该依赖插入顺序)。"""
+        q = "SELECT * FROM gifts WHERE ts>?"
+        a = [float(since or 0)]
+        if sources:
+            q += " AND source IN (%s)" % ",".join("?" * len(sources))
+            a += list(sources)
+        q += " ORDER BY ts DESC, id DESC LIMIT ?"
+        a.append(int(limit))
+        with DB_LOCK:
+            cur = self.db.execute(q, a)
+            cols = [c[0] for c in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+
     def recent(self, table, limit=50):
         with DB_LOCK:
             rows = self.db.execute(
@@ -554,6 +571,39 @@ def _add_account_fn(accounts, uid, alias, resp):
     return None
 
 
+def daily_state(store, now=None):
+    """每日礼展示/API 状态(只读,不写库)。口径:
+    - "已领"唯一可信源 = gifts 表(source='daily')的 MAX(ts)。meta last_daily_ts
+      可能是老版本误章(迁移只在 worker 处理该账号时跑,停用账号的章永远脏),
+      展示层一律不采信;空库只说明"本面板无记录",不代表从未领过(面板外不可见)。
+    - state: claimed=滚动 24h 内已领 | probing=服务器答"暂无"2h 冷却中 | due=到点/无记录
+    - next_eligible_ts = last_claim+DAILY_ROLL_S,是估计值(服务器为事实源),文案带"约"。
+    """
+    now = time.time() if now is None else float(now)
+    last_claim = None
+    retry = 0.0
+    if store is not None:
+        with DB_LOCK:
+            row = store.db.execute(
+                "SELECT MAX(ts) FROM gifts WHERE source='daily'").fetchone()
+        if row and row[0]:
+            last_claim = float(row[0])
+        retry = _meta_float(store, "daily_retry_ts")
+    next_elig = (last_claim + DAILY_ROLL_S) if last_claim else None
+    if next_elig is not None and now < next_elig:
+        state = "claimed"
+    elif retry > now:
+        state = "probing"
+        if next_elig is not None and now >= next_elig:
+            next_elig = None       # 滚动点已过,"下次可领"不再有意义(下轮即领)
+    else:
+        state = "due"
+        next_elig = None
+    return {"state": state, "has_record": last_claim is not None,
+            "last_claim_ts": last_claim, "next_eligible_ts": next_elig,
+            "retry_ts": retry if retry > 0 else None}
+
+
 def account_rows(panel):
     """GET /api/accounts:注册表+目录+运行态合成。userid 原文返回(仅 127.0.0.1 面板
     使用,供 toggle/remove 构造请求);日志/事件仍脱敏。"""
@@ -575,10 +625,12 @@ def account_rows(panel):
         gifts_total = 0
         last_active = None
         sus = ""
+        daily = daily_state(None)
         has_session = os.path.isfile(os.path.join(ACCOUNTS_DIR, uid, "session.json"))
         if store:
             weekly = store.gifts_since(time.time() - CAP_WINDOW, source="tick")
             today = store.gifts_since(_today0())
+            daily = daily_state(store)
             sus = store.get_meta(SUSPECT_META_STATE) or ""   # 只读展示,不推进状态机
             with DB_LOCK:
                 db = store.db
@@ -608,7 +660,7 @@ def account_rows(panel):
                      "ticks_total": ticks[0], "ticks_ok": ticks[1],
                      "gifts_total": gifts_total, "weekly": weekly, "today": today,
                      "status": status, "paused_reason": reason, "last_active_ts": last_active,
-                     "suspect": sus or None})
+                     "suspect": sus or None, "daily": daily})
     return rows
 
 
@@ -636,6 +688,110 @@ def gift_enrich(rows):
                 r["item_label"] = czh + "系列"
         out.append(r)
     return out
+
+
+def merge_gifts(panel, limit, since=0.0, sources=None, account=None):
+    """跨账号聚合礼物(带归属账号别名);过滤下推 SQL,按时间倒序截断。
+    account 只认 userid 精确匹配(别名可重复可改,机器接口不碰)。"""
+    aliases = {it["userid"]: (it.get("alias") or mask_userid(it["userid"]))
+               for it in panel.registry_snapshot()}
+    runtimes = panel.worker.runtimes if panel.worker else {}
+    merged = []
+    for uid, alias in aliases.items():
+        if account and uid != account:
+            continue
+        rt = runtimes.get(uid)
+        store = rt.store if rt and rt.store else None
+        created = False
+        if store is None and os.path.isfile(
+                os.path.join(ACCOUNTS_DIR, uid, "account.db")):
+            store = AccountStore(uid)
+            created = True
+        if store is None:
+            continue
+        for r in store.gifts_query(since, sources, limit):
+            r = dict(r)
+            r["account"] = alias
+            merged.append(r)
+        if created:
+            with DB_LOCK:
+                store.db.close()
+    merged.sort(key=lambda r: r.get("ts") or 0, reverse=True)
+    return merged[:limit]
+
+
+def automation_snapshot(panel):
+    """GET /api/automation:AI 自动化决策文档(只读,一次 GET 拿全量)。
+    pending_actions 明示下一步该做什么,定时任务照单执行即可:
+      start          面板未运行且有启用账号 → POST /api/start
+      login          有启用账号缺会话(人肉切 Steam 重加,API 代劳不了)
+      confirm_suspect 有疑似满仓问询待答 → POST /api/suspect/answer
+    """
+    cfg = panel.get_settings()
+    snap = panel.snapshot()
+    now = time.time()
+    rows = account_rows(panel)
+    enabled = [r for r in rows if r["enabled"]]
+    counts = {"claimed": 0, "probing": 0, "due": 0}
+    no_record = 0
+    earliest = None
+    for r in enabled:
+        d = r.get("daily") or {}
+        st = d.get("state") or "due"
+        counts[st] = counts.get(st, 0) + 1
+        if not d.get("has_record"):
+            no_record += 1
+        t = d.get("next_eligible_ts") or d.get("retry_ts")
+        if t and t > now and (earliest is None or t < earliest):
+            earliest = t       # 只取未来时刻;due 态的过去 retry 会让"最早可领"变负数
+    suspects_error = None
+    try:
+        sus = suspect_rows(panel)
+    except Exception as e:
+        sus = []
+        suspects_error = repr(e)[:120]
+    pending = []
+    if not snap.get("running") and enabled:
+        pending.append("start")
+    if any(r["status"] == "needs_login" for r in enabled):
+        pending.append("login")
+    if any(r["status"] == "paused" for r in enabled):
+        pending.append("resume_paused")   # Steam 不符等暂停:人工切号后 toggle 重试
+    if sus:
+        pending.append("confirm_suspect")
+    return {
+        "schema": 1,
+        "server_time": now,
+        "running": bool(snap.get("running")),
+        "interval": cfg["interval"],
+        "weekly_cap_per_account": WEEKLY_CAP,
+        "settings": cfg,
+        "pending_actions": pending,
+        "suspects_error": suspects_error,
+        "accounts": [{"userid": r["userid"], "alias": r["alias"],
+                      "enabled": r["enabled"], "status": r["status"],
+                      "has_session": r["has_session"],
+                      "weekly": r["weekly"],
+                      "weekly_capped": r["weekly"] >= WEEKLY_CAP,
+                      "daily": r["daily"], "today_gifts": r["today"],
+                      "last_active_ts": r["last_active_ts"]} for r in rows],
+        "daily": {"setting_enabled": bool(cfg.get("daily_gift")),
+                  "accounts_n": len(enabled),
+                  "claimed_n": counts["claimed"], "probing_n": counts["probing"],
+                  "due_n": counts["due"], "no_record_n": no_record,
+                  "earliest_next_ts": earliest},
+        "weekly": {"total": sum(r["weekly"] for r in enabled),
+                   "cap": WEEKLY_CAP * max(1, len(enabled)),
+                   "capped_account_n": sum(1 for r in enabled
+                                           if r["weekly"] >= WEEKLY_CAP)},
+        "suspects": sus,
+        "recent_gifts": gift_enrich(merge_gifts(panel, 5)),
+        "actions": {"start": "POST /api/start {interval?}",
+                    "stop": "POST /api/stop",
+                    "settings": "POST /api/settings",
+                    "toggle_account": "POST /api/accounts/toggle {userid,enabled}",
+                    "suspect_answer": "POST /api/suspect/answer {userid,action}"},
+    }
 
 
 # ---------------------------------------------------------------- 疑似满仓监控
@@ -1492,6 +1648,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_rows("events")
         if path == "/api/accounts":
             return self._send_json({"accounts": account_rows(PANEL)})
+        if path == "/api/automation":
+            # AI 自动化决策文档:一次 GET 拿全量(pending_actions/账号状态/每日聚合)
+            return self._send_json(automation_snapshot(PANEL))
         return self._send_json({"error": "not found"}, 404)
 
     def do_POST(self):
@@ -1618,46 +1777,37 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _send_rows(self, table):
+        params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
         limit = 50
-        if "?" in self.path:
-            for kv in self.path.split("?", 1)[1].split("&"):
-                if kv.startswith("limit="):
-                    try:
-                        limit = max(1, min(500, int(kv[6:])))
-                    except ValueError:
-                        pass
+        try:
+            limit = max(1, min(500, int(params.get("limit", ["50"])[0])))
+        except ValueError:
+            pass
         if table == "gifts":
-            rows = gift_enrich(self._gifts_all_accounts(limit))
-        else:
-            store = PANEL.current_store() or PANEL.idle_store()
-            rows = store.recent_dicts(table, limit) if store else []
+            # AI/面板通用的历史查询:宽松解析,坏值忽略;filters 回显供自查
+            since = 0.0
+            try:
+                since = max(0.0, float(params.get("since", ["0"])[0]))
+            except ValueError:
+                pass
+            sources = [s for s in params.get("source", [""])[0].split(",")
+                       if s in SOURCE_ZH] or None
+            account = params.get("account", [None])[0]
+            offset = 0
+            try:
+                offset = max(0, min(10000, int(params.get("offset", ["0"])[0])))
+            except ValueError:
+                pass
+            rows = merge_gifts(PANEL, limit + offset, since, sources, account)
+            rows = gift_enrich(rows[offset:])
+            return self._send_json({"rows": rows, "table": "gifts",
+                                    "limit": limit, "offset": offset,
+                                    "count": len(rows),
+                                    "filters": {"since": since, "source": sources,
+                                                "account": account}})
+        store = PANEL.current_store() or PANEL.idle_store()
+        rows = store.recent_dicts(table, limit) if store else []
         return self._send_json({"rows": rows, "table": table, "limit": limit})
-
-    def _gifts_all_accounts(self, limit):
-        """跨账号聚合最近礼物(带归属账号别名),按时间倒序截断。"""
-        aliases = {it["userid"]: (it.get("alias") or mask_userid(it["userid"]))
-                   for it in PANEL.registry_snapshot()}
-        runtimes = PANEL.worker.runtimes if PANEL.worker else {}
-        merged = []
-        for uid, alias in aliases.items():
-            rt = runtimes.get(uid)
-            store = rt.store if rt and rt.store else None
-            created = False
-            if store is None and os.path.isfile(
-                    os.path.join(ACCOUNTS_DIR, uid, "account.db")):
-                store = AccountStore(uid)
-                created = True
-            if store is None:
-                continue
-            for r in store.recent_dicts("gifts", limit):
-                r = dict(r)
-                r["account"] = alias
-                merged.append(r)
-            if created:
-                with DB_LOCK:
-                    store.db.close()
-        merged.sort(key=lambda r: r.get("ts") or 0, reverse=True)
-        return merged[:limit]
 
 
 PORT = 8377

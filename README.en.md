@@ -28,6 +28,8 @@
 | | |
 |---|---|
 | 🎁 **Auto-claim weekly gifts** | Heartbeats Klei every 360 s; gifts are receipted, opened and filed automatically. Weekly cap 8/8 with auto-pause. |
+| 🌅 **Daily-gift status at a glance** | Per-account claimed / due / probing chip (24h rolling window); auto-claimed on the next round. |
+| 🤖 **Local API for automation** | `GET /api/automation` returns full state + a pending-actions checklist — a scheduled task just follows it. |
 | 🌙 **No game launch** | Logs in with a Steam session ticket; day-to-day it is pure HTTP — even the Steam client can stay closed. |
 | 👥 **Multi-account checkboxes** | One manual login per account, then tick-and-farm. Accounts stagger automatically, each with its own SQLite database. |
 | 🖼️ **3392-skin icon dex** | Every gift is annotated with its game icon, official English name and rarity color (data from dst-skins-checklist). |
@@ -87,6 +89,8 @@ breaks (e.g. the owner plays DST elsewhere), only that account pauses — switch
 
 ## 🧾 Changelog (abridged)
 
+- **v1.4** — daily/weekly gift status (claimed/probing/due per account, local ledger as single source of truth; Klei has **no** gift-history endpoint, verified by exe string mining); `GET /api/automation` decision document; `/api/gifts` query params (since/source/account/limit/offset, SQL-pushed filters); weekly card relabeled "rolling 7d"; +24 tests.
+- **v1.3** — system-tray app (no console window): pure-ctypes tray icon, right-click menu, single-instance guard, windowed log to `_run.log`, `/api/quit`.
 - **v1.2** — renamed to Chester; visual polish pass.
 - **v5.7.2** — skin DB refreshed to 3,392 items (+439 with icons: backpacks, bedrolls, formal wear…); gift-pool items now 100% Chinese-labeled (lexicon +300 words).
 - **v1.1f** — full palette redesign + Orange & White theme (7 total); rarity colors; 2953-skin
