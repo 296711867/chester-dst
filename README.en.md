@@ -30,7 +30,7 @@
 | 🎁 **Auto-claim weekly gifts** | Heartbeats Klei every 360 s; gifts are receipted, opened and filed automatically. Weekly cap 8/8 with auto-pause. |
 | 🌙 **No game launch** | Logs in with a Steam session ticket; day-to-day it is pure HTTP — even the Steam client can stay closed. |
 | 👥 **Multi-account checkboxes** | One manual login per account, then tick-and-farm. Accounts stagger automatically, each with its own SQLite database. |
-| 🖼️ **2953-skin icon dex** | Every gift is annotated with its game icon, official English name and rarity color (data from dst-skins-checklist). |
+| 🖼️ **3392-skin icon dex** | Every gift is annotated with its game icon, official English name and rarity color (data from dst-skins-checklist). |
 | 🎨 **7 themes / CN & EN UI** | Official (bright parchment), Orange & White, Ember Night, Winter Gold, Forge Embers, Moonlight, Evergreen. |
 | 🩹 **Self-healing** | Token expiry auto-renew/re-login, offline back-off, unopened-gift queue auto-clear. Just leave it running. |
 
@@ -84,6 +84,7 @@ breaks (e.g. the owner plays DST elsewhere), only that account pauses — switch
 ## 🧾 Changelog (abridged)
 
 - **v1.2** — renamed to Chester; visual polish pass.
+- **v5.7.2** — skin DB refreshed to 3,392 items (+439 with icons: backpacks, bedrolls, formal wear…); gift-pool items now 100% Chinese-labeled (lexicon +300 words).
 - **v1.1f** — full palette redesign + Orange & White theme (7 total); rarity colors; 2953-skin
   database wired into the panel (icons / names / rarity).
 - **v1.1e** — theme system.

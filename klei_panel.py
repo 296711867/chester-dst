@@ -240,6 +240,107 @@ SKIN_ZH = {
 }
 SLOT_OF = {"TOPHAT": "头部", "UMBRELLA": "手部"}   # 物件自带头部/手部语义的兜底
 
+# ---- v5.7.2 词典扩充:覆盖礼物池散件(收藏组="-"的 Gift Box 掉落,355 件)
+#      分词来源 dst-skins-checklist 上游 3392 件(2026-10-28 刷新,礼物池散件 100% 可译);
+#      颜色/花纹 → SKIN_ZH,
+#      衣饰/物件/生物/角色 → ITEM_ZH。
+SLOT_TOKENS.update({"HAND": "手部", "LEGS": "腿部", "TORSO": "上身"})
+SKIN_ZH.update({
+    # 基础色
+    "BLACK": "黑", "WHITE": "白", "RED": "红", "BLUE": "蓝", "GREEN": "绿",
+    "YELLOW": "黄", "PURPLE": "紫", "PINK": "粉", "ORANGE": "橙", "BROWN": "棕",
+    "GREY": "灰", "TAN": "棕褐", "NAVY": "藏青", "KHAKI": "卡其", "TEAL": "青蓝",
+    "DARK": "深", "PURE": "纯", "SILVER": "银", "IVORY": "象牙白", "CREAM": "奶油色",
+    # 扩展色
+    "AGEAN": "爱琴蓝", "AUBURN": "赭红", "BATTLESHIP": "军舰灰", "BEAVER": "海狸棕",
+    "BURGUNDY": "酒红", "BUTTER": "黄油黄", "CACTUS": "仙人掌绿", "CARROT": "胡萝卜橙",
+    "CELADON": "青瓷", "CERULEAN": "蔚蓝", "CHOCOLATE": "巧克力棕",
+    "CORNFLOWER": "矢车菊蓝", "CROW": "乌黑", "DENIM": "牛仔蓝", "FAWN": "浅驼",
+    "FLAX": "亚麻黄", "FOREST": "森林绿", "GAINSBORO": "烟灰", "GARNET": "石榴红",
+    "GOLDENROD": "金黄", "GRAPE": "葡萄紫", "HIBISCUS": "木槿粉", "HONEY": "蜜黄",
+    "JADE": "玉绿", "JET": "墨黑", "JUNGLE": "丛林绿", "LAVENDER": "薰衣草紫",
+    "LAUREL": "月桂绿", "LIGHTNING": "闪电蓝", "MAUVE": "紫红", "MIDNIGHT": "午夜蓝",
+    "MULBERRY": "桑葚紫", "MUSTARD": "芥末黄", "NAPIER": "草绿", "OCEAN": "海蓝",
+    "OLIVE": "橄榄绿", "PEACOCK": "孔雀蓝", "PEARL": "珍珠白", "PEWTER": "锡灰",
+    "PHTHALO": "酞菁蓝", "PISTACHIO": "开心果绿", "PUMPKIN": "南瓜橙",
+    "RASPBERRY": "树莓红", "REDBIRD": "红雀红", "RUBY": "宝石红", "SALMON": "三文鱼橙",
+    "SAPPHIRE": "宝蓝", "SEPIA": "深褐", "SIENNA": "赭黄", "SKY": "天蓝",
+    "SLATE": "石板灰", "SMOKE": "烟灰", "SNOWBIRD": "雪鸟蓝", "STRAW": "稻草黄",
+    "VIRIDIAN": "翠绿", "VIOLET": "紫罗兰", "WALNUT": "胡桃棕", "FROST": "霜蓝",
+    # 款式/花纹/材质
+    "BASIC": "基础款", "TWOTONE": "双色", "CHECKERED": "格纹", "PINSTRIPE": "细条纹",
+    "PLAID": "格子", "PLEATED": "百褶", "PLEATS": "褶纹", "FLANNEL": "法兰绒",
+    "HAWAIIAN": "夏威夷风", "SCRIBBLE": "涂鸦", "LUMBERJACK": "伐木工", "FANCY": "华丽",
+    "RUSTIC": "质朴", "VINTAGE": "复古", "SIMPLE": "简朴", "JUNKY": "破旧",
+    "POSH": "豪华", "EXOTIC": "异域", "FEATHERED": "羽饰", "SPIKED": "尖刺",
+    "PRONGED": "尖角", "CURVE": "曲线", "CHAINED": "锁链", "SHEARLING": "羊剪绒",
+    "TWEED": "粗花呢", "CABLEKNIT": "麻花织", "FLOWER": "花朵", "HEART": "心形",
+    "RIBBON": "缎带", "WREATH": "花环", "BANDAGED": "包扎", "GRASS": "草编",
+    "HUNTERS": "猎户", "RAGGED": "破损", "POLKADOT": "波点", "SWING": "阔腿",
+    "FURRY": "毛绒", "NONE": "素色", "TRIMMED": "修边", "LEAF": "叶纹",
+    "UMBER": "棕褐", "CLAY": "陶土", "DAVYS": "达维", "STEEL": "钢灰",
+    "ROOK": "车蓝", "BEADS": "串珠", "TIECOLLAR": "系领", "LUNAR": "月华",
+    "FLOUNCY": "荷叶边", "TOGGLE": "扣绊", "UGLY": "丑毛衣", "GINGERPIG": "姜饼",
+    "PALMTREE1": "棕榈日", "PALMTREE2": "棕榈暮", "ROUND": "圆缘", "STRAIGHT": "直刃",
+    "STRAWS": "藤编", "OLD": "老式", "4": "四号", "GHOST": "幽灵", "WITCH": "巫",
+})
+ITEM_ZH.update({
+    # 手部
+    "BELTEDGLOVES": "扣带手套", "DRIVERGLOVES": "驾车手套", "LONGGLOVES": "长手套",
+    "SHORTGLOVES": "短手套", "WORKGLOVES": "工作手套",
+    # 脚部
+    "ANKLEBOOT": "踝靴", "BOOTIE": "软靴", "CAPTOE": "三接头", "BUCKLE": "搭扣",
+    "SHOE": "鞋", "SNEAKERS": "运动鞋", "LOAFERS": "乐福鞋", "SANDALS": "凉鞋",
+    "WORKBOOT": "工靴", "SWIMFLIPPERS": "脚蹼", "SWIMSHOES": "泳鞋",
+    "BUNNYSLIPPERS": "兔子拖鞋", "FUZZYSLIPPERS": "毛绒拖鞋",
+    # 腿部/身躯
+    "SKIRT": "裙", "PANTS": "长裤", "JEANS": "牛仔裤", "KNICKERBOCKER": "灯笼裤",
+    "SHORTS": "短裤", "OVERALLS": "背带裤", "TRENCHCOAT": "风衣", "JACKET": "夹克",
+    "PONCHO": "斗篷", "RAINCOAT": "雨披", "SWIMSUIT": "泳装", "SWIMSUIT2": "泳装",
+    "YACHTSUIT": "航海裙", "SLEEPGOWN": "睡袍", "TOGA": "托加袍", "TANKTOP": "背心",
+    "BLOUSE": "女衫", "TSHIRT": "T恤", "POLO": "Polo衫", "BUTTONS": "纽扣衫",
+    "BUTTON": "纽扣", "PJ": "睡衣", "SWEATER": "毛衣", "SWEATERVEST": "毛背心",
+    "TWEEDVEST": "花呢马甲", "SUSPENDERS": "背带", "BELT": "束带",
+    # 背包/收纳
+    "BACKPACK": "背包", "CAMPING": "露营", "BASKET": "提篮", "SACK": "麻袋",
+    "TREASURECHEST": "宝箱", "TRAINCASE": "手提箱", "TRAVELTRUNK": "旅行箱",
+    "STEAMERTRUNK": "汽船箱", "CARPETBAG": "毯制手提包", "CARPET": "地毯",
+    "POOP": "粪袋", "BEDROLL": "铺盖", "QUILT": "拼布被", "TENT": "帐篷",
+    # 工具/武器
+    "AXE": "斧", "BROADAXE": "阔斧", "BUGNET": "捕虫网", "SPEAR": "长矛",
+    "SHOVEL": "铲", "PICKAXE": "镐", "TORCH": "火把", "NIGHTSWORD": "暗夜剑",
+    "ARMOR": "盔甲", "SLINGSHOT": "弹弓", "LIGHTER": "打火机", "RAZOR": "剃刀",
+    "SCISSORS": "剪刀", "STICK": "风向杆", "TORNADO": "旋风", "PUNK": "朋克",
+    # 科技/设施
+    "POT": "炖锅", "COOK": "厨具", "SPICER": "调味台", "SPICEPACK": "香料包",
+    "ICEBOX": "冰箱", "SISTURN": "圣坛", "ENDTABLE": "边桌", "FIREPIT": "火盆",
+    "COLDFIREPIT": "冷火盆", "SCANNER": "扫描仪", "RESEARCHLAB2": "炼金引擎",
+    "RESEARCHLAB3": "复原科研台", "CATAPULT": "投石机", "WINONABATTERY": "电池",
+    "WINONA": "薇诺娜", "SPIKE": "尖刺", "HIGH": "高配", "LOW": "低配",
+    "MOLEHAT": "鼹鼠帽", "WINTERHAT": "冬帽", "STRAWHAT": "草帽", "FLOPPY": "软塌",
+    "DESERTHAT": "沙漠帽", "FEDORA": "宽檐帽", "DERBY": "圆顶礼帽",
+    "MONKEYHATMEDIUM": "中猴帽", "MONKEYHATSMALL": "小猴帽", "WALRUSHAT": "海象帽",
+    "SUNHAT": "遮阳帽", "BEEHAT": "蜂王冠", "EARMUFFSHAT": "耳罩帽",
+    "FLOWERHAT": "花冠头饰", "FEATHERHAT": "羽饰帽", "BEACHHOUSE": "海滨",
+    "POD": "炼金荚", "NEST": "鸟巢", "SPOTLIGHT": "聚光灯", "PICNIC": "野餐",
+    "PORCELAIN": "瓷器", "GLASS": "玻璃器", "SANITY": "暗影", "BEEFALOBELL": "牛铃",
+    # 生物/伙伴
+    "WOBY": "沃比", "PUPINGTON": "帕平顿", "BADDOG": "坏狗", "DEERCLOPS": "独眼巨鹿",
+    "KLAUS": "克劳斯", "KRAMPUS": "坎普斯", "TREEGUARD": "树精守卫",
+    "GEMDEER": "宝石鹿", "FIREHOUND": "火犬", "HOUND": "猎犬", "DRAGONFLY": "龙蝇",
+    "DRAGONLING": "幼龙", "WYVERN": "飞龙", "GLOMLING": "小格洛姆",
+    "BEARDEDDRAGON": "须龙", "SPLUMONKEY": "吐猴", "LUREPLANT": "食人草",
+    "EYEPLANT": "眼球草", "SPIDER": "蜘蛛", "WORM": "蠕虫", "WORMHOLE": "虫洞",
+    "CLAW": "钳爪", "RABBIT": "兔子", "SMALLBIRD": "小鸟", "KOALEFANT": "象",
+    "CATCOONP": "猫狸包", "BABYBEEF": "小皮弗娄牛", "BEE": "蜜蜂",
+    "BEEGUARD": "守卫蜂", "FROG": "青蛙", "HIGGSBURY": "希格斯伯瑞",
+    "NATURE": "自然", "COOKPOT": "炖锅",
+    "PORTABLE": "便携", "BLENDER": "研磨机", "FANGEDP": "獠牙", "HORN": "犄角",
+    "BAT": "蝙蝠", "BERNIE": "伯尼", "DOG": "小狗", "PIGMAN": "猪人",
+    "TAIL": "尾", "COWBELL": "牛铃", "LANTERN": "灯笼", "CARDIGAN": "开衫",
+    "MOURNING": "哀悼", "FANGED": "獠牙", "TESLA": "特斯拉", "PYRE": "火刑",
+})
+
 
 def label_item(item_type):
     """TOPHAT_CHEF → 厨师礼帽(头部);FEET_WAXWELL_WIZARD → 巫师麦斯威尔(脚部);
@@ -256,8 +357,13 @@ def label_item(item_type):
             rest.append(t)
     if any(t not in ITEM_ZH and t not in SKIN_ZH for t in rest):
         return raw
+    # 相邻双颜色段 = "基色_色号"(如 BLACK_JET/BLUE_SKY,上游 charcolor 列即基色):
+    # 只留更具体的后者,避免"黑墨黑/蓝天蓝"叠译
+    color_pos = [i for i, t in enumerate(rest) if t in SKIN_ZH and t not in ITEM_ZH]
+    drop = {a for a, b in zip(color_pos, color_pos[1:]) if b == a + 1}
     objs = [ITEM_ZH[t] for t in rest if t in ITEM_ZH]
-    skins = [SKIN_ZH[t] for t in rest if t in SKIN_ZH]
+    skins = [SKIN_ZH[t] for i, t in enumerate(rest)
+             if t in SKIN_ZH and t not in ITEM_ZH and i not in drop]
     if not objs and not skins:
         return raw
     slot = slot or (SLOT_OF.get(rest[0]) if rest else None)
@@ -267,7 +373,8 @@ def label_item(item_type):
 SOURCE_ZH = {"tick": "周礼", "daily": "每日礼", "box": "神秘箱"}
 
 # ---------------------------------------------------------------- 全量皮肤库
-# 数据源:dst-skins-checklist.github.io(2953 件:原码→英文名/收藏组/稀有度+图标)
+# 数据源:dst-skins-checklist.github.io(3392 件:原码→英文名/收藏组/稀有度+图标;
+#          _skins_db_refresh.py 可从上游刷新)
 # 图标存 web/assets/items/<CODE>.png,名称索引存 web/assets/items/index.json
 SKINS_PATH = os.path.join(WEB_DIR, "assets", "items", "index.json")
 try:
@@ -275,7 +382,8 @@ try:
 except (OSError, ValueError):
     SKINS_DB = {}
 COLL_ZH = json.loads(json.dumps({"": "", "Abyssal": "深渊", "Adventurer's": "冒险家", "Aged": "苍古", "An Eye for an Eye": "以眼还眼", "Ancient": "远古", "Art Nouveau": "新艺术", "Barber's": "理发师", "Canadiana": "加拿大风情", "Cawnival": "乌鸦嘉年华", "Chitinous": "几丁质", "Costume": "戏服", "Cottage": "田园", "Crystalline": "晶体", "Dark Wizard": "黑魔法师", "Decennial": "十周年", "Decorator's": "装饰师", "Detective": "侦探", "Experimental": "实验", "Fantasmical": "幻梦", "Farmhand": "农夫", "Flock's": "禽群", "Fool's": "愚人", "Forge": "熔炉", "Forlorn Doll": "孤寂人偶", "Formal": "典雅", "Gothic": "哥特", "Hallowed Nights": "万圣夜", "Hand-me-down": "传家旧物", "Head Chef": "主厨", "Heart": "心形", "Hollow": "空心", "Jeweled": "珠宝", "Joker's": "小丑", "Lunar New Year": "农历新年", "Lush": "繁茂", "Masquerade": "化装舞会", "Merrymaker": "寻欢客", "Minotaur": "米诺陶", "Moonbound": "缚月", "Musclebound": "肌肉", "Mystic": "神秘", "Mythic": "神话", "Nautical": "航海", "Next of Kin": "至亲", "Nom de Plume": "笔名", "Oasis Bound": "绿洲之旅", "Orbital": "环轨", "Pantomime": "哑剧", "Parlor's": "会客厅", "Reliquary": "圣物", "Rose": "玫瑰", "Royal": "王室", "Seaside": "海滨", "Shadow": "暗影", "Shelled": "甲壳", "Shorts": "短裤", "Side Show": "助兴表演", "Snowfallen": "落雪", "Strongman": "大力士", "Survivor": "幸存者", "Swamp": "沼泽", "Swashbuckler": "侠盗", "Theater": "剧院", "Tinkersmith": "巧匠", "Trawler": "拖网渔船", "Uncorrupted": "未染", "Victorian": "维多利亚", "Wagstaff": "瓦格斯塔夫", "Winged Victory": "翼之胜利", "Winter": "冬宴", "Year of the Carrat": "卡拉特鼠之年", "Year of the Clockwork Knight": "发条骑士之年", "Year of the Pig King": "猪王之年", "Year of the Varg": "座狼之年"}))
-RARITY_ZH = json.loads(json.dumps({"Common": "普通", "Classy": "精致", "Spiffy": "华丽", "Distinguished": "卓越", "Elegant": "典雅", "Loyal": "忠诚", "Timeless": "永恒", "Heirloom Elegant": "传家典雅", "Event": "活动", "Reward": "奖励", "Character": "角色", "Complimentary": "赠礼", "Resurrected": "复刻", "Proof Of Purchase": "凭证"}))
+COLL_ZH.update({"Line Cook": "副厨", "Promotional": "宣传"})
+RARITY_ZH = json.loads(json.dumps({"Common": "普通", "Classy": "精致", "Spiffy": "华丽", "Distinguished": "卓越", "Elegant": "典雅", "Loyal": "忠诚", "Timeless": "永恒", "Heirloom Elegant": "传家典雅", "Heirloom Classy": "传家精致", "Heirloom Distinguished": "传家卓越", "Event": "活动", "Reward": "奖励", "Character": "角色", "Complimentary": "赠礼", "Resurrected": "复刻", "Proof Of Purchase": "凭证"}))
 
 
 class AccountMismatch(RuntimeError):
