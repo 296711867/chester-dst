@@ -1526,6 +1526,14 @@ class Handler(BaseHTTPRequestHandler):
             PANEL.apply_settings(merged)
             ok, msg = PANEL.start(merged["interval"])
             return self._send_json({"ok": ok, "message": msg}, 200 if ok else 409)
+        if path == "/api/quit":
+            # 整程序退出(托盘「退出」的无头等价物):先回包再触发,客户端不会看到连接重置
+            self._send_json({"ok": True})
+            flag = getattr(self.server, "stop_flag", None)
+            if flag is not None:
+                threading.Thread(target=flag.set, daemon=True,
+                                 name="klei-quit").start()
+            return
         if path == "/api/accounts/add":
             body = self._read_body_json()
             if not isinstance(body, dict):
@@ -1654,32 +1662,305 @@ class Handler(BaseHTTPRequestHandler):
 
 PORT = 8377
 
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+MUTEX_NAME = "Chester.Singleton"
+ERROR_ALREADY_EXISTS = 183
+MB_ICONERROR = 0x10
+MB_ICONINFORMATION = 0x40
+WINDOWED = False   # _ensure_stdio 检测到无控制台(pythonw/windowed exe)时置 True;
+                   # 之后 sys.stdout 已被 _Log 替换,不能再用 is None 判定
+
+
+class PanelServer(ThreadingHTTPServer):
+    """关掉 SO_REUSEADDR:Windows 上它允许双绑定劫持,
+    单实例/端口占用检测都依赖第二个实例 bind 时报 WinError 10048。"""
+    allow_reuse_address = False
+    daemon_threads = True
+
+
+class _Log:
+    """windowed 模式的 stdout/stderr 替身:行级落盘,磁盘异常绝不反噬主流程。"""
+
+    def __init__(self, fp):
+        self.fp = fp
+
+    def write(self, s):
+        try:
+            self.fp.write(s)
+            self.fp.flush()
+        except OSError:
+            pass
+
+    def flush(self):
+        pass
+
+
+def _ensure_stdio():
+    """pythonw / windowed exe 下 sys.stdout/stderr 为 None(print 全盲):
+    统一重定向 HERE/_run.log(追加,utf-8),超 2MB 重开。返回日志路径或 None。"""
+    global WINDOWED
+    WINDOWED = sys.stdout is None
+    if sys.stdout is not None and sys.stderr is not None:
+        return None
+    path = os.path.join(HERE, "_run.log")
+    fp = None
+    try:
+        if os.path.isfile(path) and os.path.getsize(path) > 2 * 1024 * 1024:
+            os.remove(path)
+        fp = open(path, "a", encoding="utf-8", errors="replace")
+        fp.write("\n==== %s Chester start pid=%d ====\n"
+                 % (time.strftime("%Y-%m-%d %H:%M:%S"), os.getpid()))
+        fp.flush()
+    except OSError:
+        if fp is not None:
+            try:
+                fp.close()
+            except OSError:
+                pass
+        fp = open(os.devnull, "w", encoding="utf-8", errors="replace")
+        path = None
+    log = _Log(fp)
+    if sys.stdout is None:
+        sys.stdout = log
+    if sys.stderr is None:
+        sys.stderr = log
+    return path
+
+
+def _fatal(msg, rc, icon):
+    """启动期致命错误:windowed 弹 MessageBox(唯一可见渠道),控制台 print。"""
+    if WINDOWED:
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, msg, "Chester", icon)
+        except Exception:
+            pass
+    else:
+        print("[panel] %s" % msg, flush=True)
+    sys.exit(rc)
+
+
+_MUTEX = None
+
+
+def _single_instance_check(port=8377, open_browser=True):
+    """命名互斥体:已有 Chester 在跑(哪怕换了端口)→ 代开面板并退出(码 3)。"""
+    if sys.platform != "win32":
+        return
+    import ctypes
+    try:
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        k.CreateMutexW.restype = ctypes.c_void_p
+        k.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
+        global _MUTEX
+        _MUTEX = k.CreateMutexW(None, False, MUTEX_NAME)   # 句柄活到进程结束
+        if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
+            try:
+                if open_browser:
+                    if not _probe_panel(port):   # 旧实例换过口则回默认口,尽力而为
+                        port = 8377
+                    webbrowser.open("http://127.0.0.1:%d" % port)
+            except Exception:
+                pass
+            _fatal("Chester 已在运行,已为你打开控制面板。", 3, MB_ICONINFORMATION)
+    except Exception:
+        pass    # 检测失败不拦启动(降级为旧版重复行为)
+
+
+def _probe_panel(port):
+    """/api/status 探活:判断端口上是不是自家人(响应含 version 字段)。"""
+    try:
+        import urllib.request
+        with urllib.request.urlopen(
+                "http://127.0.0.1:%d/api/status" % port, timeout=1.5) as r:
+            return r.status == 200 and b'"version"' in r.read(4096)
+    except Exception:
+        return False
+
+
+def _bind_server(port, open_browser=True):
+    """bind + 10048 时短暂重试(自家 TIME_WAIT);最终失败分流:自家人→转交,外人→报错。"""
+    for _ in range(3):
+        try:
+            return PanelServer(("127.0.0.1", port), Handler)
+        except OSError as e:
+            if getattr(e, "winerror", None) != 10048:
+                raise
+            time.sleep(0.6)
+    url = "http://127.0.0.1:%d" % port
+    if _probe_panel(port):
+        if open_browser:
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+        _fatal("Chester 已在运行(旧版),已为你打开现有面板。", 3, MB_ICONINFORMATION)
+    _fatal("端口 %d 被其他程序占用。\n可换端口启动:Chester.exe --port 8400"
+           "\n(或 启动控制面板.bat 后加 --port 8400)。\n"
+           "若刚退出过 Chester,等几秒重试即可。" % port, 2, MB_ICONERROR)
+
+
+def _autorun_on():
+    if not getattr(sys, "frozen", False):
+        return False
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+            winreg.QueryValueEx(k, "Chester")
+            return True
+    except OSError:
+        return False
+
+
+def _toggle_autorun():
+    """开机自启开关(HKCU Run,仅打包版菜单可见)。
+    注册表异常上抛,由托盘 _dispatch 统一记日志(不静默吞)。"""
+    import winreg
+    if _autorun_on():
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0,
+                            winreg.KEY_SET_VALUE) as k:
+            winreg.DeleteValue(k, "Chester")
+    else:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+            winreg.SetValueEx(k, "Chester", 0, winreg.REG_SZ,
+                              '"%s"' % sys.executable)
+
+
+def _tray_state_line():
+    try:
+        s = PANEL.snapshot()
+    except Exception:
+        return "Chester"
+    if s.get("running"):
+        n = int(s.get("accounts_enabled") or 0)
+        if n <= 0:
+            return "挂机中(空转)· 面板里勾选账号后自动恢复"
+        return "挂机中 · %d 账号 · 间隔 %ss" % (n, s.get("interval") or "?")
+    return "已停止 · 左键图标打开面板"
+
+
+def _tray_tooltip():
+    try:
+        s = PANEL.snapshot()
+    except Exception:
+        return "Chester"
+    import klei_tray
+    return klei_tray.tooltip_text(s.get("version", ""), bool(s.get("running")),
+                                  int(s.get("accounts_enabled") or 0))
+
+
+def _shutdown_sequence(srv, tray):
+    """收敛退出(主线程执行):冻结输入→停 worker→关监听→收托盘,每步带超时。"""
+    try:
+        srv.shutdown()                     # ① 停接收(serve_forever 在 http 线程)
+    except Exception:
+        pass
+    try:
+        PANEL.stop()                       # ② 停 worker(join ≤8s,超时也继续)
+    except Exception:
+        pass
+    try:
+        srv.server_close()                 # ③ 关监听 socket
+    except Exception:
+        pass
+    if tray is not None:                   # ④ 收托盘:正常已自删,兜底跨线程删图标
+        try:
+            tray.request_quit()
+            tray.join(2.0)
+            if tray.alive():
+                tray.hard_delete_icon()
+        except Exception:
+            pass
+
+
+def _start_tray(args, url, stop_flag, log_path):
+    """托盘创建:一切失败降级为无托盘运行,绝不阻断面板。"""
+    if args.no_tray:
+        return None
+    tray = None
+    try:
+        import klei_tray
+
+        def _quit():
+            stop_flag.set()
+            if tray is not None:           # 立刻让图标消失,不等主线程收敛
+                tray.request_quit()
+
+        tray = klei_tray.create_tray(
+            url=url,
+            on_open=lambda: webbrowser.open(url),
+            on_quit=_quit,
+            state_line=_tray_state_line,
+            tooltip=_tray_tooltip,
+            on_datadir=lambda: os.startfile(HERE),
+            on_log=(lambda: os.startfile(log_path)) if log_path else None,
+            autorun_enabled=_autorun_on,
+            on_autorun_toggle=_toggle_autorun,
+            frozen=getattr(sys, "frozen", False),
+            show_start_balloon=WINDOWED,   # windowed 唯一的"活着"信号;不能再用
+                                          # stdout is None(此处已被 _Log 替换)
+            logger=lambda m: print(m, flush=True),
+        )
+        if tray is None or not tray.start():
+            return None
+        return tray
+    except Exception as e:
+        print("[tray] 托盘不可用(面板不受影响): %r" % (e,), flush=True)
+        return None
+
 
 def main():
     global PORT
     ap = argparse.ArgumentParser(description="Klei 挂机本地控制面板(仅 127.0.0.1)")
     ap.add_argument("--port", type=int, default=8377)
     ap.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
+    ap.add_argument("--no-tray", action="store_true", help="不启用托盘图标(调试)")
     args = ap.parse_args()
     PORT = args.port
 
+    log_path = _ensure_stdio()             # windowed 模式 print 前必须先兜底
+    print("[panel] Chester 启动 %s pid=%d"
+          % (time.strftime("%Y-%m-%d %H:%M:%S"), os.getpid()), flush=True)
+
+    _single_instance_check(PORT, open_browser=not args.no_browser)  # 转交并退出(码 3)
+    srv = _bind_server(PORT, open_browser=not args.no_browser)      # 占用分流(码 2/3)
+
     migrate_accounts(PANEL)   # 首次升级收编 accounts/ 目录 → 注册表
 
-    srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    srv.daemon_threads = True
     url = "http://127.0.0.1:%d" % PORT
-    print("[panel] 控制面板已启动: %s  (Ctrl+C 退出)" % url, flush=True)
+    stop_flag = threading.Event()
+    srv.stop_flag = stop_flag
+    http_t = threading.Thread(target=srv.serve_forever,
+                              kwargs={"poll_interval": 0.5},
+                              name="klei-http", daemon=True)
+    http_t.start()
+
+    tray = _start_tray(args, url, stop_flag, log_path)
+    print("[panel] 控制面板已启动: %s  (%s)" % (
+        url, "托盘模式:图标右键退出" if tray else "无托盘:Ctrl+C 退出"), flush=True)
     print("[panel] 教程见项目根目录 挂机指南.html;黑窗口 bat 与本面板不要同时运行", flush=True)
     if not args.no_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
-        srv.serve_forever()
+        while not stop_flag.is_set():
+            stop_flag.wait(0.5)            # 主线程可被 Ctrl+C 打断
     except KeyboardInterrupt:
-        print("\n[panel] 退出", flush=True)
-        PANEL.stop()
+        pass
     finally:
-        srv.server_close()
+        print("[panel] 退出", flush=True)
+        _shutdown_sequence(srv, tray)
+        os._exit(0)                        # 硬收尾:不等 daemon 线程,退出码确定
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception:
+        try:
+            import traceback
+            traceback.print_exc()
+        except Exception:
+            pass    # windowed 下 stderr 可能仍为 None,print_exc 自身失败不遮原始退出
+        _fatal("Chester 发生错误退出,详情见运行日志 _run.log。", 1, MB_ICONERROR)

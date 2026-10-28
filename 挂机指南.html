@@ -165,8 +165,9 @@ token 到期前 TokenPurpose 续期(链式续期已实测成立)</pre>
 
 <section id="s2">
   <h2>第 2 章 · 首次运行</h2>
-  <p><b>方式 A(推荐,可看统计/礼物监控,界面支持中/英文切换):</b>双击 <code>启动控制面板.bat</code> → 浏览器自动打开
-  控制面板 → 填心跳间隔(默认 360)→ 点<b>开始</b>。</p>
+  <p><b>方式 A(推荐,可看统计/礼物监控,界面支持中/英文切换):</b>双击 <code>启动控制面板.bat</code> →
+  程序以<b>系统托盘图标</b>常驻(无黑框;左键图标开面板,右键出菜单,退出程序走菜单里的「退出」)
+  → 浏览器自动打开控制面板 → 填心跳间隔(默认 360)→ 点<b>开始</b>。</p>
   <p><b>方式 B(纯黑窗口):</b>双击 <code>心跳自动领取.bat</code>,黑窗口开始滚日志。
   <span class="badge orange">注意</span>两种方式<b>不要同时开</b>(会互相顶掉登录凭证)。</p>
   <p>想先只跑一轮测试:</p>
@@ -229,7 +230,8 @@ SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API load
   <table class="plain">
   <tr><th>你想…</th><th>做法</th></tr>
   <tr><td>每天挂机领礼</td><td>开着控制面板(推荐)或黑窗口就行;想开机自动挂,见第 7 章计划任务</td></tr>
-  <tr><td>停止</td><td>控制面板点"停止",或黑窗口 Ctrl+C / 直接关窗口</td></tr>
+  <tr><td>停止挂机</td><td>控制面板点"停止"(<b>只停挂机,程序还在</b>);黑窗口 Ctrl+C / 直接关窗口</td></tr>
+  <tr><td>退出程序</td><td>托盘图标右键 → <b>退出</b>(关浏览器标签页不影响挂机)</td></tr>
   <tr><td>电脑睡眠</td><td>睡眠=脚本暂停(心跳不计时);长时间挂机请在电源设置里改"不休眠"</td></tr>
   <tr><td>换电脑/搬文件夹</td><td>整个项目文件夹+dst 一起搬,登录态跟着走(路径都是相对脚本的)</td></tr>
   <tr><td><b>换 Steam 账号</b></td><td><b>必须</b>先删 <code>credentials\.hb_auto_session.json</code>

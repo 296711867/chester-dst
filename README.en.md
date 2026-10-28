@@ -37,8 +37,12 @@
 ## ⚡ Quick start
 
 1. Install **64-bit Python 3.8+** and sign into the Steam client (launching DST is not required).
-2. Double-click **`启动控制面板.bat`** (the panel launcher) — it opens `http://127.0.0.1:8377`.
+2. Double-click **`启动控制面板.bat`** — Chester runs as a **system-tray icon** (no console window) and opens `http://127.0.0.1:8377`.
 3. Click **▶ 开始** and wait for a "heartbeat ok" line. Full illustrated guide: [挂机指南.html](挂机指南.html) (Chinese).
+
+> 🖥️ **Tray**: left-click the icon to open the panel; right-click for the menu
+> (status line / open panel / data folder / run log / start-with-Windows [packaged exe] / **quit**).
+> Quit the program from the tray menu — closing the browser tab does NOT stop the heartbeat.
 
 > ⚠️ Not affiliated with Klei Entertainment. Automating gift collection may violate the game's
 > Terms of Service — use at your own risk, for personal and educational purposes only.
