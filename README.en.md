@@ -68,6 +68,20 @@ Each account needs **one manual login**: switch the Steam client to that account
 account owner's machine). Afterwards the panel renews everything over HTTP. If an account's chain
 breaks (e.g. the owner plays DST elsewhere), only that account pauses — switch/toggle it to retry.
 
+## 🤖 Local API (automation)
+
+Everything runs on `http://127.0.0.1:8377` (loopback only). For scripts / scheduled tasks / AI agents:
+
+- `GET /api/automation` — one-shot decision document: running state, per-account weekly (x/8) and
+  daily-gift status, aggregates, recent gifts, and a **`pending_actions`** checklist
+  (`start` / `login` / `resume_paused` / `confirm_suspect`) — just follow the list.
+- `GET /api/gifts?since=&source=tick,daily&account=<userid>&limit=&offset=` — local gift history
+  (filters pushed into SQL; lenient parsing with a `filters` echo).
+- `POST /api/start` · `/api/stop` · `/api/quit` · `/api/settings` · `/api/accounts/toggle` ·
+  `/api/suspect/answer` — control endpoints.
+
+See the Chinese README's "本地 API 与 AI 自动化" section for the full decision table.
+
 ## 🔒 Security notes
 
 - Tokens equal a Klei login credential: `credentials/` is git-ignored and must never be shared.
@@ -89,8 +103,7 @@ breaks (e.g. the owner plays DST elsewhere), only that account pauses — switch
 
 ## 🧾 Changelog (abridged)
 
-- **v1.4** — daily/weekly gift status (claimed/probing/due per account, local ledger as single source of truth; Klei has **no** gift-history endpoint, verified by exe string mining); `GET /api/automation` decision document; `/api/gifts` query params (since/source/account/limit/offset, SQL-pushed filters); weekly card relabeled "rolling 7d"; +24 tests.
-- **v1.3** — system-tray app (no console window): pure-ctypes tray icon, right-click menu, single-instance guard, windowed log to `_run.log`, `/api/quit`.
+- **v5.8** — system-tray app (no console window; pure-ctypes tray icon, right-click menu, single-instance guard, windowed log to `_run.log`); daily-gift status per account (claimed/probing/due, local ledger as single source of truth — Klei has **no** gift-history endpoint, verified by exe string mining); **local automation API**: `GET /api/automation` decision document with a pending-actions checklist, `/api/gifts` query params (since/source/account/limit/offset); weekly card relabeled "rolling 7d"; +51 tests.
 - **v1.2** — renamed to Chester; visual polish pass.
 - **v5.7.2** — skin DB refreshed to 3,392 items (+439 with icons: backpacks, bedrolls, formal wear…); gift-pool items now 100% Chinese-labeled (lexicon +300 words).
 - **v1.1f** — full palette redesign + Orange & White theme (7 total); rarity colors; 2953-skin

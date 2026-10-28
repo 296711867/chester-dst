@@ -232,6 +232,7 @@ SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API load
   <tr><td>每天挂机领礼</td><td>开着控制面板(推荐)或黑窗口就行;想开机自动挂,见第 7 章计划任务</td></tr>
   <tr><td>停止挂机</td><td>控制面板点"停止"(<b>只停挂机,程序还在</b>);黑窗口 Ctrl+C / 直接关窗口</td></tr>
   <tr><td>退出程序</td><td>托盘图标右键 → <b>退出</b>(关浏览器标签页不影响挂机)</td></tr>
+  <tr><td>看每日礼/周礼进度</td><td>账号行右侧彩色标签=每日礼状态(已领~剩余时间/待领/暂无),顶部"每日礼(滚动24h)"卡看合计;周礼进度条 X/8 每账号一条</td></tr>
   <tr><td>电脑睡眠</td><td>睡眠=脚本暂停(心跳不计时);长时间挂机请在电源设置里改"不休眠"</td></tr>
   <tr><td>换电脑/搬文件夹</td><td>整个项目文件夹+dst 一起搬,登录态跟着走(路径都是相对脚本的)</td></tr>
   <tr><td><b>换 Steam 账号</b></td><td><b>必须</b>先删 <code>credentials\.hb_auto_session.json</code>
@@ -287,6 +288,14 @@ SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API load
   <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --once --no-logfile</pre></div>
   <p>起始位置填本项目文件夹。注意:计划任务的 --once 模式每次要用有效 token,断链时会自动
   重登(需 Steam 在线)。</p></details>
+  <details><summary>AI/脚本自动化管理(本地 API,推荐)</summary>
+  <p>控制面板开着时,本机 <code>http://127.0.0.1:8377</code> 提供机器可读接口(仅本机可访问)。
+  定时任务/AI 只需一步:</p>
+  <div class="cmd"><button class="copybtn">复制</button><pre>curl http://127.0.0.1:8377/api/automation</pre></div>
+  <p>返回运行状态、每账号周礼 X/8 与每日礼状态、待办清单 <code>pending_actions</code>——
+  看到 <code>"start"</code> 就 <code>POST /api/start</code>,看到 <code>"login"</code>/<code>"resume_paused"</code>
+  就是需要人切 Steam 号,其余情况不用动。礼物历史可查
+  <code>/api/gifts?source=daily&amp;limit=50</code>。完整决策表见 README「本地 API 与 AI 自动化」。</p></details>
   <details><summary>自定义心跳间隔(防风控:别低于 360)</summary>
   <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --interval 600</pre></div>
   <p>下限 30s 被强制抬回。社区实测缩短间隔可加快出礼(4-5h→1h),但属加速行为,风控自担。</p></details>
