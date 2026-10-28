@@ -184,7 +184,7 @@ identity 指针,且 Klei 走 `ISteamUserAuth/AuthenticateUserTicket` 验票,绑�
 | 端点 | 用途 | 备注 |
 |---|---|---|
 | `/clientitems/DST/Tick` | 心跳(360s) | 常见 `GiftReceived:{Key}` 或 false;门控 `E_UNOPENED_ITEMS` |
-| `/clientitems/DST/DailyGift` | 每日登录礼 | **实测响应 `GiftReceived:true` + 顶层 `ItemType/ItemID`**,按天幂等 |
+| `/clientitems/DST/DailyGift` | 每日登录礼 | **实测响应 `GiftReceived:true` + 顶层 `ItemType/ItemID`**,自上次领取 24h 滚动幂等 |
 | `/clientitems/DST/GetAllItems` | 全量库存 | 未开礼物=`Context==3` |
 | `/clientitems/DST/SetItemOpened` | 开礼 | `{ItemID,ClientToken}`,Context 3→1 |
 | `/clientitems/DST/OpenMysteryBox` | 开神秘箱 | 与周礼门控无关 |
@@ -195,7 +195,7 @@ identity 指针,且 Klei 走 `ISteamUserAuth/AuthenticateUserTicket` 验票,绑�
 
 ### 挂机策略(2026-10-26 定版,2026-10-27 增疑似满仓问询)
 - 周礼 PC 上限 **8 个/周**(社区情报),领满约 24h 不再掉 → 面板滑动 7 天窗口**领满即停**,自动恢复;
-- 每日礼与周礼是两条线,面板每天自动调一次 DailyGift;
+- 每日礼与周礼是两条线:DailyGift 服务器为**自上次领取 24h 滚动**口径(非本地日界,2026-10-28 实测),面板领取成功后静默 4h、其后每 2h 探测一次自动补领,不会再因本地日界误判漏领;
 - 间隔默认 360s 对齐游戏行为;社区实测缩短间隔可加速出礼(4-5h→1h)但属加速行为,风控自担;
 - 交叉验证:皮肤即 Steam 物品,`steamcommunity.com/inventory/<steamid>/322330/2`。
 
@@ -276,7 +276,7 @@ worker 每轮顺序处理所有启用账号(账号间错峰 3 秒),领满/暂停
   - 票据调用改 5 参 identity=None(通吃新旧 SDK,Klei 走 AuthenticateUserTicket);
   - 控制面板实测:会话接管→心跳 200→SQLite 入库→404/405/Host 校验全对;
   - **DailyGift 实测响应形态**:`{"GiftReceived":true,"ItemType":"TOPHAT_CHEF","ItemID":…}`
-    (顶层字段,非嵌套),按天幂等;当日 TOPHAT_CHEF 已入账。
+    (顶层字段,非嵌套),24h 滚动幂等;当日 TOPHAT_CHEF 已入账。
 
 ### 11.4 版本
 工具链 v1.1(2026-10-26)· 适用当前 DST 版本 · Python 3.8+(纯标准库)

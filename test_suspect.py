@@ -386,6 +386,94 @@ class TAnswerEndpoint(FakePanelBase):
         self.assertIn("suspect_clear", [k for k, _ in events(self.store)])
 
 
+class TDailyGift(Base):
+    """每日礼 24h 滚动修复:成功才盖长章;false 只盖 2h 短冷却;误章迁移。"""
+
+    def _rt(self):
+        w = P.Worker.__new__(P.Worker)
+        w.panel = self.panel
+        rt = P.AccountRuntime("KU_TEST", "T")
+        rt.store = self.store
+        rt.token = "TOK"
+        return w, rt
+
+    def _stub(self, resp, calls):
+        P.HB.http_post_json = lambda b, p, body: (calls.append(p), resp)[1]
+
+    def setUp(self):
+        super().setUp()
+        self._old_settings = P.SETTINGS_PATH
+        P.SETTINGS_PATH = os.path.join(self.tmp, "settings.json")
+        self.panel = P.Panel()
+        self._orig_post = P.HB.http_post_json
+
+    def tearDown(self):
+        P.HB.http_post_json = self._orig_post
+        P.SETTINGS_PATH = self._old_settings
+        super().tearDown()
+
+    def test_false_sets_short_retry_not_day_stamp(self):
+        w, rt = self._rt()
+        calls = []
+        self._stub((200, '{"Error":false,"GiftReceived":false}'), calls)
+        w._daily_gift(rt)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(float(rt.store.get_meta("last_daily_ts", 0) or 0), 0.0)
+        retry = float(rt.store.get_meta("daily_retry_ts", 0) or 0)
+        self.assertGreater(retry, time.time())            # 2h 冷却
+        w._daily_gift(rt)                                 # 冷却内不再打
+        self.assertEqual(len(calls), 1)
+        rt.store.set_meta("daily_retry_ts", "0")          # 冷却过后
+        w._daily_gift(rt)
+        self.assertEqual(len(calls), 2)
+        # 事件只记探测周期首条,重复 false 不刷事件表
+        noevt = [k for k, d in events(self.store) if k == "daily_gift" and "暂无" in d]
+        self.assertEqual(len(noevt), 1)
+
+    def test_success_stamps_long_and_records_gift(self):
+        w, rt = self._rt()
+        calls = []
+        self._stub((200, '{"Error":false,"GiftReceived":true,'
+                        '"ItemType":"TOPHAT_X","ItemID":42}'), calls)
+        w._daily_gift(rt)
+        last = float(rt.store.get_meta("last_daily_ts"))
+        self.assertGreater(last, 0)
+        self.assertEqual(self.store.gifts_since(0, source="daily"), 1)
+        w._daily_gift(rt)                                 # 静默期内不再打
+        self.assertEqual(len(calls), 1)
+
+    def test_transport_error_stamps_nothing(self):
+        w, rt = self._rt()
+        calls = []
+        self._stub((0, "net error"), calls)
+        w._daily_gift(rt)
+        self.assertEqual(float(rt.store.get_meta("last_daily_ts", 0) or 0), 0.0)
+        self.assertEqual(float(rt.store.get_meta("daily_retry_ts", 0) or 0), 0.0)
+        w._daily_gift(rt)                                 # 下轮即重试,无冷却
+        self.assertEqual(len(calls), 2)
+
+    def test_migration_clears_false_stamp_without_gift(self):
+        # 老版本 bug 现场:00:01 false 盖了当日章,章后无 daily 礼入账
+        self.store.set_meta("last_daily_ts", repr(time.time() - 3600))
+        w, rt = self._rt()
+        calls = []
+        self._stub((200, '{"Error":false,"GiftReceived":true,'
+                        '"ItemType":"HAND_X","ItemID":7}'), calls)
+        w._daily_gift(rt)
+        self.assertEqual(len(calls), 1)                   # 误章被清,本轮就补调
+        self.assertEqual(self.store.gifts_since(0, source="daily"), 1)
+
+    def test_success_stamp_survives_migration_check(self):
+        gift(self.store, time.time() - 60, source="daily")
+        self.store.set_meta("last_daily_ts", repr(time.time() - 60))
+        w, rt = self._rt()
+        calls = []
+        self._stub((200, '{"Error":false,"GiftReceived":true,'
+                        '"ItemType":"Y","ItemID":1}'), calls)
+        w._daily_gift(rt)
+        self.assertEqual(len(calls), 0)                   # 真章不清,静默期跳过
+
+
 class TEvResilience(Base):
     """审查 B2-I1:错误兜底路径的事件写入绝不能反噬(持续锁下 worker 必须存活)。"""
 

@@ -16,7 +16,8 @@ klei_panel.py — Chester·饥荒礼物箱 本地控制面板(v5):多账号勾�
       heartbeats(ts, ok, http, note) / gifts(ts, item_type, item_id, source)
       events(ts, kind, detail) / meta(key, value)
   * 周礼策略:滑动 7 天窗口内 tick 来源礼物 >= 8 → 跳过该账号本轮心跳,
-    窗口滑出自动恢复;DailyGift(每日登录礼)独立于周礼,每账号每天一次。
+    窗口滑出自动恢复;DailyGift(每日登录礼)独立于周礼,服务器为自上次
+    领取 24h 滚动口径(非本地日界),面板成功后静默 4h、其后 2h 一探自动补领。
 
 用法:
   python klei_panel.py                # 默认 http://127.0.0.1:8377 并自动开浏览器
@@ -63,6 +64,8 @@ CAP_WINDOW = 7 * 24 * 3600     # 滑动窗口(与下行 SUSPECT_ANCHOR_WINDOW_S 
                                #  领满计数窗与干燥锚点搜索窗共用同一个服务端周)
 MAX_OPEN_CHAIN = 200           # 与 klei_open_gifts.MAX_CHAIN 对齐
 MAX_BOX_PER_ROUND = 50         # 单轮自动开神秘箱上限
+DAILY_QUIET_S = 4 * 3600       # 每日礼领取成功后的静默(服务器 24h 滚动,之后 2h 一探)
+DAILY_RETRY_S = 2 * 3600       # 每日礼"暂无/已领"后的短冷却(滚动点过后自动补领)
 
 # ---- 疑似满仓监控(面板外已领的周礼协议层查不到,只能按有效挂机干燥期启发式判断) ----
 TICK_EFFECTIVE_S = 360             # 1 个成功 tick ≈ 服务端 6 分钟有效游玩(协议事实)
@@ -127,7 +130,7 @@ def save_settings(d):
 
 
 def _today0():
-    """本地时区当日 0 点(与每日礼判定共用)。"""
+    """本地时区当日 0 点(仅今日礼物统计展示用;每日礼领取按服务器 24h 滚动口径)。"""
     return time.mktime(time.strptime(time.strftime("%Y-%m-%d"), "%Y-%m-%d"))
 
 # ---------------------------------------------------------------- 账号注册表
@@ -907,9 +910,21 @@ class Worker(threading.Thread):
         return opened
 
     def _daily_gift(self, rt):
-        """每日登录礼:每账号每天一次,独立于周礼(Tick)体系。"""
-        today0 = _today0()
-        if float(rt.store.get_meta("last_daily_ts", 0) or 0) >= today0:
+        """每日登录礼:独立于周礼(Tick)体系。服务器口径是"自上次领取 24h 滚动"
+        (实测 2026-10-28:本地 00:01 调用答 false,滚动点过后同日再调即 true),
+        与本地日界不一致——v5.7.1 前按本地日盖章会把"还没到滚动点"误判成
+        "今日已领",漏领一整天。现改为:真领到才盖长章(静默 DAILY_QUIET_S),
+        服务器说"暂无/已领"只盖 2h 短冷却重试章,由服务器当事实源。"""
+        now = time.time()
+        last = _meta_float(rt.store, "last_daily_ts")
+        if last > 0:
+            # 迁移:老版本 false 也盖章——章后没有 daily 礼物入账的即误章,清零
+            if rt.store.gifts_since(last - 1, source="daily") == 0:
+                last = 0.0
+                rt.store.set_meta("last_daily_ts", "0")
+            elif now < last + DAILY_QUIET_S:
+                return
+        if now < _meta_float(rt.store, "daily_retry_ts"):
             return
         st, raw = HB.http_post_json(
             HB.ITEMS_BASE, PATH_DAILY, {"ClientToken": rt.token})
@@ -919,8 +934,8 @@ class Worker(threading.Thread):
             j = json.loads(raw)
         except json.JSONDecodeError:
             pass
-        # 只有拿到确定性答复(HTTP 200 + 无业务错误)才盖章"当日已领";
-        # 网络失败/token 过期不盖章,下轮重试,避免长暂停期每天丢每日礼
+        # 只有拿到确定性答复(HTTP 200 + 无业务错误)才动章;
+        # 网络失败/token 过期两章都不盖,下轮重试
         if st != 200 or not isinstance(j, dict) or j.get("Error"):
             self._ev(rt, "daily_gift", "调用未成功(HTTP=%s),不盖章下轮重试: %s" % (st, raw[:80]))
             return
@@ -934,13 +949,21 @@ class Worker(threading.Thread):
                 item_id = int(src.get("ItemID") or 0)
             except (TypeError, ValueError):
                 item_id = 0
-        rt.store.set_meta("last_daily_ts", time.time())
         if got:
+            rt.store.set_meta("last_daily_ts", repr(now))
+            rt.store.set_meta("daily_retry_ts", "0")
+            rt.store.set_meta("daily_noevt", "0")
             rt.store.add_gift(got, item_id, "daily")
             self.panel.bump_gift()
             self._ev(rt, "daily_gift", "%s (%d)" % (got, item_id))
         else:
-            self._ev(rt, "daily_gift", "今日无每日礼/已领(%s)" % raw[:80])
+            # 服务器口径"暂无/已领":不盖当日章,盖 2h 短冷却,滚动点过后自动补领;
+            # 事件只记探测周期首条(每 ~2h 一探,全记会刷爆前端 50 行事件视图)
+            rt.store.set_meta("daily_retry_ts", repr(now + DAILY_RETRY_S))
+            if rt.store.get_meta("daily_noevt") != "1":
+                rt.store.set_meta("daily_noevt", "1")
+                self._ev(rt, "daily_gift",
+                         "暂无每日礼(服务器口径,2h 一探至滚动点): %s" % raw[:80])
 
     # ---- 单账号一轮(原 run 主体;吃掉单账号异常,返回是否完全成功) ----
     def _process_account(self, rt, cfg):

@@ -53,7 +53,7 @@
 - **Renewal** — tokens last 60 min and are chain-renewed via `TokenPurpose` (verified ≥2 hops), so Steam
   is only needed once per account.
 - **Strategy** — weekly gifts cap at 8/week (sliding 7-day window, auto-pause/resume), plus the separate
-  DailyGift endpoint once per day per account.
+  DailyGift endpoint every 24h per account (rolling).
 
 ## 👥 Adding accounts
 
