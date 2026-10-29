@@ -162,7 +162,6 @@ def main():
     if args.interval < 30:
         log("[!] 间隔过短会被服务器当 flooding，强制 30s")
         args.interval = 30
-    logfile = args.log or None
 
     # ---- 0. 取得 token ----
     token, userid, j, src = None, None, None, None

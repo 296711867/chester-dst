@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Moli CDP 裸驱:开页/取图链/截图。用法见底部 main。"""
-import base64, json, sys, time, urllib.request
+import base64, json, time, urllib.request
 import websocket
 
 BASE = "http://127.0.0.1:9222"

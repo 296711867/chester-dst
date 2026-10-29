@@ -117,7 +117,7 @@ python -m PyInstaller Chester.spec --noconfirm
 | `klei_steam_login.py` | 只想登录看凭证/续期(`--json` 存盘,`--refresh <TOKEN>` 续期) |
 | `klei_heartbeat.py` | 纯心跳(适合计划任务 `--once`) |
 | `klei_open_gifts.py` | 手动开礼物(`--dry-run` 列队,`--open-boxes` 开神秘箱,`--verify` 验门控) |
-| `_probe_ticket.py` | 票据诊断(Init/登录态/8 次重试明细) |
+| `devtools/_probe_ticket.py` | 票据诊断(Init/登录态/8 次重试明细) |
 
 常用参数:`--once` 只跑一轮 · `--interval N` 心跳间隔(默认 360,下限 30 强制,防风控别调快)
 · `--dll PATH` 指定 steam_api64.dll · `--no-logfile` 不落盘日志 · `--token FILE`/`--save FILE` 复用/保存会话。
@@ -142,7 +142,7 @@ python -m PyInstaller Chester.spec --noconfirm
 | 找不到 steam_api64.dll | 项目与 dst 放同级,或 `--dll` 全路径 |
 | WinError 193 | 32 位 Python,换 64 位 |
 | SteamAPI_Init 失败 | Steam 没开/没登录 |
-| GetAuthSessionTicket handle=0 | 偶发未就绪(已自动重试);反复出现跑 `_probe_ticket.py` |
+| GetAuthSessionTicket handle=0 | 偶发未就绪(已自动重试);反复出现跑 `devtools/_probe_ticket.py` |
 | 换 Steam 号后还是旧 KU_ | 删 `credentials\.hb_auto_session.json` + `accounts\` 旧目录 |
 | 托盘没有图标(explorer 重启后) | 程序会自动重挂;若始终没有,加 `--no-tray` 跑控制台模式看日志 |
 | 退出后托盘图标残影 | 进程被强杀时的正常现象,鼠标划过任务栏即消 |
@@ -163,19 +163,24 @@ chester\
 │                             面板 /assets/ 伺服
 ├─ panel_settings.json       面板设置(运行期生成,gitignore)
 ├─ panel_accounts.json       账号注册表(运行期生成,gitignore)
-├─ _cdp.py                   moli CDP 调试助手(抓图标/截图用,开发工具)
+├─ devtools/                 开发与诊断工具(票据诊断/托盘E2E/调色板检查/皮肤库刷新)
 ├─ klei_steam_login.py      票据+登录+续期+dll查找(库+CLI)
 ├─ klei_heartbeat.py        共享 HTTP/tick/日志/登录(库+CLI)
 ├─ klei_heartbeat_auto.py   常驻心跳+领礼(黑窗口模式)
 ├─ klei_open_gifts.py       开礼工具
 ├─ dst_servers.py           在线服务器查询(接口逆向,见 docs\协议-服务器查询.md)
-├─ _probe_ticket.py         票据诊断
+├─ klei_tray.py             系统托盘(ctypes 手写,隐藏窗口+右键菜单+消息泵)
+├─ klei_portal_browser.py   门户会话浏览器(系统 Edge/Chrome 专用 profile)
+├─ test_*.py                测试五套件(136 例:托盘/疑似满仓/每日礼/门户导入+会话)
+
 ├─ docs\
 │  ├─ 协议-登录与会话.md       C 层登录全流程还原+实现对照+Token寿命
 │  ├─ 协议-心跳与礼物.md       Tick/出礼协议还原
 │  ├─ 多账号路线图.md          多账号方案设计(面板已实现,含 L0/L1/L2 降级)
 │  ├─ 情报-社区与SDK调研_2026-10-26.md   SDK签名演化/SteamKit2/周礼情报
-│  └─ 附录-*.md               原始研究笔记×2(存档)
+│  ├─ 附录-*.md               原始研究笔记×2(存档)
+│  ├─ 情报-工坊挂礼mod与历史礼物调研_2026-10-29.md   工坊 mod 调研×衣柜反推×门户 transactions 发现
+│  └─ research/               研究图档存档(皮肤库研究图标/截图)
 └─ credentials\             凭证+日志+每账号数据库(gitignore 整目录)
    ├─ accounts\KU_…\account.db   heartbeats/gifts/events/meta 四表
    └─ .hb_auto_session.json      旧单账号会话(面板会自动接管迁移)

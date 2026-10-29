@@ -480,7 +480,7 @@ def parse_portal_text(text, now=None):
 
 # ---------------------------------------------------------------- 全量皮肤库
 # 数据源:dst-skins-checklist.github.io(3392 件:原码→英文名/收藏组/稀有度+图标;
-#          _skins_db_refresh.py 可从上游刷新)
+#          devtools/_skins_db_refresh.py 可从上游刷新)
 # 图标存 web/assets/items/<CODE>.png,名称索引存 web/assets/items/index.json
 SKINS_PATH = os.path.join(WEB_DIR, "assets", "items", "index.json")
 try:

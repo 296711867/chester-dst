@@ -255,9 +255,9 @@ SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API load
   <tr><td>3</td><td><code>[WinError 193] 不是有效的 Win32 应用程序</code></td>
       <td>32 位 Python 加载 64 位 DLL</td><td>换 64 位 Python(第 1 章命令验证输出 64)</td></tr>
   <tr><td>4</td><td><code>SteamAPI_Init 失败：Steam 客户端未运行或未登录？</code></td>
-      <td>Steam 没开/没登录/离线模式</td><td>启动 Steam 并登录后重跑;仍失败跑 <code>python _probe_ticket.py</code> 看 BLoggedOn</td></tr>
+      <td>Steam 没开/没登录/离线模式</td><td>启动 Steam 并登录后重跑;仍失败跑 <code>python devtools/_probe_ticket.py</code> 看 BLoggedOn</td></tr>
   <tr><td>5</td><td><code>GetAuthSessionTicket 失败 (handle=0x0 len=0)</code></td>
-      <td>Steam 用户上下文偶发未就绪(已自动重试 5 次仍失败)</td><td>重启 Steam 等 30 秒重跑;反复出现跑 <code>_probe_ticket.py</code> 采集证据</td></tr>
+      <td>Steam 用户上下文偶发未就绪(已自动重试 5 次仍失败)</td><td>重启 Steam 等 30 秒重跑;反复出现跑 <code>devtools/_probe_ticket.py</code> 采集证据</td></tr>
   <tr><td>6</td><td><code>LoginViaSteam 失败 HTTP=4xx</code> 或登录后立刻 E_INVALID_TOKEN</td>
       <td>票据被拒:账号未拥有 DST / 家庭共享受限</td><td>确认该 Steam 账号库里有 DST;家庭共享换主号再试</td></tr>
   <tr><td>7</td><td><code>心跳鉴权失效 …E_INVALID_TOKEN</code> 后跟 <code>已续期/已重登</code></td>
@@ -316,7 +316,7 @@ SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API load
   <details><summary>单轮静默测试(不写日志文件)</summary>
   <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --once --no-logfile</pre></div></details>
   <details><summary>票据诊断工具 _probe_ticket.py</summary>
-  <p>拿不到票据时跑 <code>python _probe_ticket.py</code>,输出 Init/登录态/8 次重试明细;
+  <p>拿不到票据时跑 <code>python devtools/_probe_ticket.py</code>,输出 Init/登录态/8 次重试明细;
   DLL 自动按主脚本顺序查找。诊断结论对照第 6 章 4/5 号条目。</p></details>
 </section>
 
