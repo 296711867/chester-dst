@@ -365,6 +365,40 @@ class TFrontend(unittest.TestCase):
         self.assertIn('/api/gifts/import', self.html)
         self.assertIn("loadGiftPage", self.html)
 
+    def test_i18n_portal_v6_keys_both_langs(self):
+        # v6.0 门户一键对账:i18n 双语言齐
+        keys = ["days_h", "min_h", "portal_acct_tag", "portal_week_n",
+                "portal_week_ends", "portal_week_left", "portal_week_tip",
+                "portal_stale", "portal_synced_at", "portal_state_none",
+                "portal_state_wait", "portal_state_ready", "portal_state_expired",
+                "portal_state_error", "portal_connected", "portal_unmatched",
+                "portal_recon_more", "portal_login_probe_fail",
+                "imp_open_login_win", "imp_probe", "imp_cancel", "imp_advanced",
+                "imp_login_hint", "imp_onekey", "imp_onekey_busy",
+                "imp_err_portal_login", "imp_err_portal_fetch",
+                "imp_err_portal_kernel"]
+        for key in keys:
+            self.assertEqual(self.html.count(key + ":"), 2,
+                             "%s 应在 zh/en 两套字典各出现一次" % key)
+
+    def test_portal_ui_wired(self):
+        for i in ("portalRef", "portalBox", "portalDot", "portalStateTxt",
+                  "portalSynced", "portalWeekLine", "portalHint",
+                  "impOpenLogin", "impOnekey", "impProbe", "impCancelLogin",
+                  "impAdvanced"):
+            self.assertIn('id="%s"' % i, self.html, "缺少 %s 接线" % i)
+        for s in ("/api/portal/session_status", "/api/portal/probe",
+                  "/api/portal/open_login", "/api/portal/onekey_import",
+                  "portalReconcile", "renderPortalRef"):
+            self.assertIn(s, self.html)
+        self.assertIn("we>1e12", self.html)   # WeekEnd 毫秒防御回归锚
+
+    def test_legacy_import_wizard_intact(self):
+        # 旧粘贴向导降级为折叠但全部可达
+        for i in ("impText", "impGo", "impAcct", "impNote", "impAdvanced"):
+            self.assertIn('id="%s"' % i, self.html)
+        self.assertIn("data-i18n=\"imp_advanced\"", self.html)
+
     def test_prog_grid_four_cols(self):
         self.assertIn("grid-template-columns:1.2fr 1fr 1fr 1fr", self.html)
         self.assertIn("grid-template-columns:1fr 1fr", self.html)   # 移动端 2 列

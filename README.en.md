@@ -83,6 +83,20 @@ Everything runs on `http://127.0.0.1:8377` (loopback only). For scripts / schedu
 
 See the Chinese README's "本地 API 与 AI 自动化" section for the full decision table.
 
+## ⚡ One-click reconciliation (v6.0)
+
+The import wizard is now one-click: **Open login window** (the panel launches your system
+Edge/Chrome with a dedicated profile — you sign in there, your password never passes through the
+panel) → close the window → **probe** → **One-click import**. The session cookie persists across
+restarts; when it expires the wizard walks you through signing in again. Zero new dependencies
+(uses the browser already installed on Windows).
+
+The weekly card gains an **official reconciliation line**: `Official · Week 2965 · 8/8 · ends Fri
+05:40 · 14h left` (from the portal's `drops.json`; the week number is always taken from the
+portal, never computed locally). The big progress bar stays on the local rolling-7-day caliber —
+the two coexist by design. When the portal shows more than local, the tooltip suggests one-click
+import to backfill. Manual paste import (v5.9) remains as a collapsed fallback.
+
 ## 📜 Portal history import (v5.9)
 
 The Klei **web account portal** (accounts.klei.com) has a transactions page the game API never
@@ -117,6 +131,9 @@ never falsely clears a muted suspect state.
 
 ## 🧾 Changelog (abridged)
 
+- **v6.0** — one-click reconciliation: dedicated browser session (system Edge/Chrome profile,
+  password never touches the panel), auto fetch+import of portal history; official week line
+  (week number / claimed / countdown) on the weekly card.
 - **v5.9** — portal history import: paste Klei portal `data.json`, one year of official daily/weekly gift records back-filled per account (idempotent, Item-ID dedup); gift-table filter chips + load-older.
 - **v5.8** — system-tray app (no console window; pure-ctypes tray icon, right-click menu, single-instance guard, windowed log to `_run.log`); daily-gift status per account (claimed/probing/due, local ledger as single source of truth — Klei has **no** gift-history endpoint, verified by exe string mining); **local automation API**: `GET /api/automation` decision document with a pending-actions checklist, `/api/gifts` query params (since/source/account/limit/offset); weekly card relabeled "rolling 7d"; +51 tests.
 - **v1.2** — renamed to Chester; visual polish pass.

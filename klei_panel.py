@@ -45,6 +45,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import klei_steam_login as K
 import klei_heartbeat as HB
 import klei_open_gifts as OG
+from klei_portal_browser import DATA_URL as PB_DATA_URL, DROPS_URL as PB_DROPS_URL
 
 # 打包(PyInstaller)模式:可写数据放 exe 旁,只读资源(web/)在解包目录
 if getattr(sys, "frozen", False):
@@ -946,6 +947,156 @@ def emit_event(store, kind, detail=""):
             pass
 
 
+# ---------------- 门户会话(v6.0 一键对账):状态机权威在后端,前端只是镜像 ----------------
+PORTAL_STALE_S = 1800            # 前端"数据滞后"提示阈值
+PORTAL_CACHE_PATH = os.path.join(HERE, "credentials", "portal", "drops_cache.json")
+PORTAL_PROFILE_DIR = os.path.join(HERE, "credentials", "portal", "profile")
+
+PORTAL_JSON_STATE_KEYS = ("state", "userid", "matched", "account_alias",
+                          "available", "week", "week_end_ms", "claimed",
+                          "max", "synced_at", "error_code")
+
+
+class PortalSession:
+    """门户会话:持久 profile(浏览器 cookie)+ drops 缓存,跨重启。
+    state ∈ none(无 profile/未探测) | awaiting_login(登录窗口开着)
+          | ready(会话可用) | expired(会话失效) | error(网络/内核错误)。
+    快照只出安全字段,绝不含 cookie/token;HTTP 线程内不做外网请求
+    (probe/sync 都是用户显式动作或子进程调用)。"""
+
+    def __init__(self, profile_dir=PORTAL_PROFILE_DIR, cache_path=PORTAL_CACHE_PATH,
+                 browser=None):
+        self.profile_dir = profile_dir
+        self.cache_path = cache_path
+        self.browser = browser
+        self.state = "none"
+        self.userid = None            # 门户账号(从 drops/data 无法直读,登录窗口落定后由对账推)
+        self.login_proc = None        # 登录窗口 Popen(引用持有,防 GC)
+        self._load_cache()
+
+    # ---- 缓存 ----
+    def _load_cache(self):
+        try:
+            j = json.load(open(self.cache_path, encoding="utf-8"))
+            self.drops = j.get("drops") or None
+            self.userid = j.get("userid")
+            self.synced_at = float(j.get("synced_at") or 0)
+            self.state = "ready" if self.drops else "none"
+        except (OSError, ValueError):
+            self.drops = None
+            self.synced_at = 0.0
+            self.state = "none"
+
+    def _save_cache(self, userid):
+        try:
+            os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+            json.dump({"drops": self.drops, "userid": userid,
+                       "synced_at": self.synced_at},
+                      open(self.cache_path, "w", encoding="utf-8"),
+                      ensure_ascii=False)
+        except OSError:
+            pass
+
+    def _browser(self):
+        if self.browser is None:
+            import klei_portal_browser as PB
+            self.browser = PB.PortalBrowser(PORTAL_PROFILE_DIR)
+        return self.browser
+
+    def _extract_json(self, dump):
+        """headless dump 里的 JSON:浏览器把 application/json 包在 <pre> 里。"""
+        s = dump.strip()
+        if s.startswith("<"):
+            i, k = s.find("{"), s.rfind("}")
+            if i < 0 or k <= i:
+                return None
+            s = s[i:k + 1]
+        try:
+            return json.loads(s)
+        except json.JSONDecodeError:
+            return None
+
+    # ---- 动作 ----
+    def open_login(self):
+        b = self._browser()
+        self.login_proc = b.open_login_window()
+        self.state = "awaiting_login"
+
+    def probe(self):
+        """拉 drops.json 判登录态并刷新缓存。返回 (ok, error_code)。"""
+        b = self._browser()
+        try:
+            dump = b.fetch_dump(PB_DROPS_URL)
+        except Exception as e:
+            code = getattr(e, "code", "portal_fetch_failed")
+            self.state = "error" if code in ("kernel_error", "bad_kernel") else "error"
+            return False, code
+        j = self._extract_json(dump)
+        if not isinstance(j, dict) or j.get("ok") is not True \
+                or not isinstance(j.get("data"), dict):
+            self.state = "expired" if self.drops else "none"
+            return False, "portal_not_logged_in"
+        d = j["data"]
+        self.drops = {"drops_info": d.get("DropsInfo") or {},
+                      "current_week": d.get("CurrentWeek") or 0,
+                      "week_end_ms": d.get("WeekEnd") or 0}
+        self.synced_at = time.time()
+        self.state = "ready"
+        self._save_cache(self.userid or "")
+        return True, None
+
+    def fetch_data_txns(self):
+        """拉 data.json → parse_portal_text 结果;壳页 → PortalParseError。"""
+        b = self._browser()
+        dump = b.fetch_dump(PB_DATA_URL)
+        j = self._extract_json(dump)
+        if not isinstance(j, dict) or j.get("ok") is not True:
+            raise PortalParseError("portal_not_logged_in",
+                                   "门户会话已失效,请重新登录")
+        # 复用粘贴解析器的校验(把已解析的 dict 包回文本,零重复逻辑)
+        return parse_portal_text(json.dumps(j, ensure_ascii=False))
+
+    def cancel_login(self):
+        self.state = "ready" if self.drops else "none"
+        self.login_proc = None
+
+    def snapshot(self, registry=None):
+        """安全快照:绝不含 cookie/token;matched=门户账号是否在面板注册表。"""
+        matched = False
+        alias = None
+        if self.userid and registry:
+            for it in registry:
+                if it.get("userid") == self.userid:
+                    matched, alias = True, it.get("alias")
+                    break
+        d = self.drops or {}
+        dst = (d.get("drops_info") or {}).get("DST") or {}
+        return {"state": self.state, "userid": self.userid, "matched": matched,
+                "account_alias": alias,
+                "available": bool(self.browser and self.browser.available) if self.browser
+                             else bool(detect_portal_kernel()[1]),
+                "week": d.get("current_week") or 0,
+                "week_end_ms": d.get("week_end_ms") or 0,
+                "claimed": int(dst.get("ClaimedDrops") or 0),
+                "max": int(dst.get("MaxDrops") or 0),
+                "synced_at": self.synced_at or None,
+                "error_code": None}
+
+
+def detect_portal_kernel():
+    import klei_portal_browser as PB
+    return PB.detect_kernel()
+
+
+def portal_reconcile(local_weekly, claimed):
+    """官方 vs 本地对账三态(纯函数):match/local_behind/window_tail。"""
+    if claimed > local_weekly:
+        return "local_behind"
+    if local_weekly > claimed:
+        return "window_tail"
+    return "match"
+
+
 def _meta_float(store, key):
     try:
         return float(store.get_meta(key, 0) or 0)
@@ -1723,6 +1874,7 @@ class Panel:
 
 
 PANEL = Panel()
+PORTAL = PortalSession()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1779,6 +1931,11 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:             # 问询组装失败不拖垮整个 status
                 s["suspects"] = []
                 s["suspects_error"] = repr(e)[:120]
+            try:
+                s["portal"] = PORTAL.snapshot(
+                    registry=PANEL.registry_snapshot())
+            except Exception:                  # 门户块失败不拖垮 status
+                s["portal"] = {"state": "error", "available": False}
             return self._send_json(s)
         if path == "/api/settings":
             return self._send_json({"settings": PANEL.get_settings()})
@@ -1866,6 +2023,90 @@ class Handler(BaseHTTPRequestHandler):
                        "导入历史:回填 %d 件礼物(去重 %d),本周周礼 %d" %
                        (stats["gifts_backfilled"], stats["gifts_deduped"],
                         stats["weekly_after"]))
+            with DB_LOCK:
+                store.db.close()
+            return self._send_json({"ok": True, **stats})
+        if path == "/api/portal/session_status":
+            # 会话快照(纯内存缓存,无外网请求);带 registry 匹配信息
+            return self._send_json({"ok": True,
+                                    **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
+        if path == "/api/portal/probe":
+            # 登录态检测:headless 拉 drops.json(用户显式触发,同步 45s 内)
+            ok, code = PORTAL.probe()
+            if not ok:
+                return self._send_json({"ok": False, "code": code,
+                                        **PORTAL.snapshot(registry=PANEL.registry_snapshot())},
+                                       401)
+            return self._send_json({"ok": True,
+                                    **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
+        if path == "/api/portal/open_login":
+            if PORTAL.state == "awaiting_login":
+                return self._send_json({"ok": False, "code": "login_window_open",
+                                        "detail": "登录窗口已打开"}, 409)
+            try:
+                PORTAL.open_login()
+            except Exception as e:
+                code = getattr(e, "code", "bad_kernel")
+                return self._send_json({"ok": False, "code": code,
+                                        "detail": str(e)}, 501)
+            return self._send_json({"ok": True, "state": PORTAL.state})
+        if path == "/api/portal/login_cancel":
+            PORTAL.cancel_login()
+            return self._send_json({"ok": True, "state": PORTAL.state})
+        if path == "/api/portal/onekey_import":
+            # 一键对账:门户会话拉 data.json+drops.json → 解析 → 回填目标账号
+            body = self._read_body_json()
+            uid = (body or {}).get("userid") or ""
+            uid_ok = (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
+                      and all(c.isalnum() or c in "_-" for c in uid[3:]))
+            if not uid_ok or not any(it["userid"] == uid
+                                     for it in PANEL.registry_snapshot()):
+                return self._send_json({"ok": False, "code": "bad_account",
+                                        "detail": "账号 ID 非法或未在面板注册"}, 400)
+            if PORTAL.state == "awaiting_login":
+                return self._send_json({"ok": False, "code": "login_window_open",
+                                        "detail": "请先完成登录并关闭登录窗口"}, 409)
+            try:
+                txns, extra = PORTAL.fetch_data_txns()
+            except PortalParseError as e:
+                if e.code == "portal_not_logged_in":
+                    PORTAL.state = "expired"
+                    return self._send_json({"ok": False, "code": e.code,
+                                            "detail": e.detail}, 401)
+                # 其余(data.json 形状/无礼物条目等)按解析失败处理
+                return self._send_json({"ok": False, "code": e.code,
+                                        "detail": e.detail}, 400)
+            except Exception as e:
+                code = getattr(e, "code", "portal_fetch_failed")
+                return self._send_json({"ok": False, "code": code,
+                                        "detail": str(e)}, 502)
+            store = AccountStore(uid)
+            try:
+                stats = store.import_portal_gifts(txns)
+            except Exception:
+                try:
+                    with DB_LOCK:
+                        store.db.close()
+                except Exception:
+                    pass
+                return self._send_json({"ok": False, "code": "import_failed",
+                                        "detail": "导入写入失败,请重试"}, 500)
+            # 顺带刷新官方周进度(drops 失败不致命)
+            warnings = []
+            try:
+                ok, code = PORTAL.probe()
+                if not ok:
+                    warnings.append(code)
+            except Exception:
+                warnings.append("drops_unavailable")
+            stats.update({"parsed": len(txns), "dropped": extra["dropped"],
+                          "time_min": txns[0]["time"], "time_max": txns[-1]["time"],
+                          "userid": uid, "warnings": warnings,
+                          "portal": PORTAL.snapshot(registry=PANEL.registry_snapshot())})
+            emit_event(store, "portal_sync",
+                       "一键导入:回填 %d 件(去重 %d)· 第 %s 周" %
+                       (stats["gifts_backfilled"], stats["gifts_deduped"],
+                        (PORTAL.drops or {}).get("current_week") or "?"))
             with DB_LOCK:
                 store.db.close()
             return self._send_json({"ok": True, **stats})
