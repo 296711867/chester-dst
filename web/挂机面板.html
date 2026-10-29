@@ -234,6 +234,9 @@ label{color:var(--text-2);font-size:13px}
 .imp-note.err{color:var(--err-fg)}
 .imp-note.ok{color:var(--ok)}
 .imp-reimport{font-size:11.5px;color:var(--text-2);margin-bottom:6px}
+.imp-danger-row{display:flex;align-items:center;gap:10px;margin-top:8px;
+  padding-top:8px;border-top:1px dashed var(--line)}
+.imp-danger-row .btn.armed{background:var(--err-fg);color:#fff;border-color:var(--err-fg)}
 #askBanner{flex-basis:100%;order:10;display:flex;align-items:center;gap:8px;
   background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);
   border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;
@@ -523,6 +526,10 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
         <span style="flex:1"></span>
         <button class="btn btn-primary" id="impGo" data-i18n="imp_go">开始导入</button>
       </div>
+      <div class="imp-danger-row">
+        <button class="btn btn-ghost btn-sm" id="impClear" data-i18n="clear_gifts">清空本地礼物记录</button>
+        <span class="imp-reimport" data-i18n="clear_gifts_hint">测试用:清空后可用「一键导入」按官方记录重新回填(自动备份)</span>
+      </div>
     </details>
 
     <div class="sus-btns" style="margin-top:8px">
@@ -593,6 +600,9 @@ zh:{
   imp_err_server:"导入失败,请重试",
   imp_err_too_large:"内容超过 512KB——请确认复制的是 data.json 页面",
   flt_all:"全部", gift_more:"加载更早记录", gifts_sub_filter:"已筛选:%s",
+  clear_gifts:"清空本地礼物记录",
+  clear_gifts_confirm:"再点一次确认清空(不可恢复,自动备份)",
+  clear_gifts_done:"已清空本地记录 %d 条(备份:%s)",
   days_h:"天", min_h:"分",
   portal_acct_tag:"官方·%a", portal_week_n:"第 %w 周",
   portal_week_ends:"%d 结束", portal_week_left:"剩 %t",
@@ -685,6 +695,9 @@ en:{
   imp_err_server:"Import failed, retry",
   imp_err_too_large:"Over 512KB — make sure you copied the data.json page",
   flt_all:"All", gift_more:"Load older", gifts_sub_filter:"Filtered: %s",
+  clear_gifts:"Clear local gift ledger",
+  clear_gifts_confirm:"Click again to confirm (irreversible, auto-backed-up)",
+  clear_gifts_done:"Cleared %d local records (backup: %s)",
   days_h:"d", min_h:"m",
   portal_acct_tag:"Official · %a", portal_week_n:"Week %w",
   portal_week_ends:"ends %d", portal_week_left:"%t left",
@@ -1235,6 +1248,35 @@ $("impOnekey").addEventListener("click",function(){
 });
 $("impClose").addEventListener("click",function(){
   $("impMask").hidden=true;stopPortalPoll();
+});
+/* ===== 清空本地礼物记录(两击确认,自动备份) ===== */
+var clearArmed=false,clearTimer=null;
+$("impClear").addEventListener("click",function(){
+  var b=$("impClear"),accs=lastAccountsData||[];
+  var uid=$("impAcct").value||(accs.length===1?(accs[0]||{}).userid:"");
+  if(!uid)return toast(t("imp_err_acct"));
+  if(!clearArmed){                        /* 第一击:进入武装态 */
+    clearArmed=true;
+    b.classList.add("armed");
+    b.textContent=t("clear_gifts_confirm");
+    if(clearTimer)clearTimeout(clearTimer);
+    clearTimer=setTimeout(function(){      /* 5 秒不点第二击自动解除 */
+      clearArmed=false;b.classList.remove("armed");
+      b.textContent=t("clear_gifts");
+    },5000);
+    return;
+  }
+  clearArmed=false;clearTimer&&clearTimeout(clearTimer);
+  b.classList.remove("armed");b.disabled=true;
+  fetchJSON("/api/gifts/clear",{userid:uid}).then(function(r){
+    b.disabled=false;b.textContent=t("clear_gifts");
+    if(r&&r.ok){
+      toast(t("clear_gifts_done").replace("%d",r.deleted)
+        .replace("%s",r.backup||"—"));
+      refreshStatus();refreshData();
+    }else toast(t("imp_err_server"));
+  }).catch(function(){b.disabled=false;b.textContent=t("clear_gifts");
+    toast(t("srv_down"))});
 });
 var logsOpen=false,curLog="hb";
 $("logsCard").addEventListener("toggle",function(){

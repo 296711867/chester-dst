@@ -333,5 +333,75 @@ class TApiImport(FakePanelBase):
             self.assertIn(k, r)
 
 
+class TApiGiftsClear(FakePanelBase):
+    """POST /api/gifts/clear:清空+自动备份+快照归零+穿越拦截。"""
+    def setUp(self):
+        super().setUp()
+        self.panel = self.setUp2()
+        with P.ACCOUNTS_LOCK:
+            self.panel._registry = {"accounts": [
+                {"userid": "KU_TEST", "alias": "T", "enabled": True}]}
+        self._old_route = (P.PORT, P.PANEL)
+        P.PANEL = self.panel
+        self.srv = ThreadingHTTPServer(("127.0.0.1", 0), P.Handler)
+        P.PORT = self.srv.server_address[1]
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        # 预置 3 条礼物
+        store = P.AccountStore("KU_TEST")
+        with P.DB_LOCK:
+            for i, src in enumerate(["tick", "daily", "box"]):
+                store.db.execute(
+                    "INSERT INTO gifts(ts,item_type,item_id,source) VALUES(?,?,?,?)",
+                    (NOW - i * 100, "T_%d" % i, i, src))
+            store.db.commit()
+        with P.DB_LOCK:
+            store.db.close()
+
+    def tearDown(self):
+        self.srv.shutdown()
+        self.srv.server_close()
+        (P.PORT, P.PANEL) = self._old_route
+        self.tearDown2()
+        super().tearDown()
+
+    def _post(self, path, body):
+        req = urllib.request.Request(
+            "http://127.0.0.1:%d%s" % (P.PORT, path),
+            data=json.dumps(body).encode(), headers={"Content-Type": "application/json"},
+            method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_clear_deletes_and_backups(self):
+        code, r = self._post("/api/gifts/clear", {"userid": "KU_TEST"})
+        self.assertEqual((code, r["ok"]), (200, True))
+        self.assertEqual(r["deleted"], 3)
+        self.assertTrue(r["backup"])
+        bpath = os.path.join(P.ACCOUNTS_DIR, "KU_TEST", r["backup"])
+        self.assertTrue(os.path.isfile(bpath))
+        b = json.load(open(bpath, encoding="utf-8"))
+        self.assertEqual(b["deleted"], 3)
+        self.assertEqual(len(b["rows"]), 3)
+        store = P.AccountStore("KU_TEST")
+        with P.DB_LOCK:
+            n = store.db.execute("SELECT COUNT(*) FROM gifts").fetchone()[0]
+            self.assertEqual(float(store.get_meta(P.SUSPECT_META_WEEKLY)), 0.0)
+        with P.DB_LOCK:
+            store.db.close()
+        self.assertEqual(n, 0)
+
+    def test_clear_idempotent_and_bad_account(self):
+        code, r = self._post("/api/gifts/clear", {"userid": "KU_TEST"})
+        code2, r2 = self._post("/api/gifts/clear", {"userid": "KU_TEST"})
+        self.assertEqual((r["deleted"], r2["deleted"]), (3, 0))
+        for bad in ("KU_../x", "KU_NOPE"):
+            code, r = self._post("/api/gifts/clear", {"userid": bad})
+            self.assertIn(code, (400, 404))
+            self.assertEqual(r["code"], "bad_account")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -1998,6 +1998,40 @@ class Handler(BaseHTTPRequestHandler):
             PANEL.apply_settings(merged)
             ok, msg = PANEL.start(merged["interval"])
             return self._send_json({"ok": ok, "message": msg}, 200 if ok else 409)
+        if path == "/api/gifts/clear":
+            # 清空本地礼物记录(测试/重置用):自动备份到账号目录 JSON,再删表
+            body = self._read_body_json()
+            uid = (body or {}).get("userid") or ""
+            uid_ok = (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
+                      and all(c.isalnum() or c in "_-" for c in uid[3:]))
+            if not uid_ok or not any(it["userid"] == uid
+                                     for it in PANEL.registry_snapshot()):
+                return self._send_json({"ok": False, "code": "bad_account",
+                                        "detail": "账号 ID 非法或未在面板注册"}, 400)
+            store = AccountStore(uid)
+            ts = time.time()
+            with DB_LOCK:
+                rows = store.db.execute(
+                    "SELECT ts,item_type,item_id,source FROM gifts ORDER BY ts").fetchall()
+                store.db.execute("DELETE FROM gifts")
+                store.set_meta(SUSPECT_META_WEEKLY, "0")
+                store.db.commit()
+            backup_name = "gifts_backup_%s.json" % time.strftime("%Y%m%d_%H%M%S")
+            try:
+                json.dump({"deleted": len(rows), "at": ts,
+                           "rows": [{"ts": r[0], "item_type": r[1],
+                                     "item_id": r[2], "source": r[3]} for r in rows]},
+                          open(os.path.join(store.dir, backup_name), "w",
+                               encoding="utf-8"), ensure_ascii=False, indent=1)
+                backup = backup_name
+            except OSError:
+                backup = None                  # 备份失败不阻断删除(表数据已清)
+            emit_event(store, "gifts_clear", "清空本地礼物记录 %d 条(备份 %s)"
+                       % (len(rows), backup or "失败"))
+            with DB_LOCK:
+                store.db.close()
+            return self._send_json({"ok": True, "deleted": len(rows),
+                                    "backup": backup})
         if path == "/api/gifts/import":
             # 门户历史导入:粘贴的 data.json 文本 → 解析 → 回填该账号 gifts 表
             body = self._read_body_json()
