@@ -23,7 +23,12 @@ import winreg
 
 DATA_URL = "https://accounts.klei.com/account/transactions/data.json"
 DROPS_URL = "https://accounts.klei.com/account/transactions/drops.json"
+INFO_URL = "https://accounts.klei.com/account/info"
 LOGIN_LANDING = "https://accounts.klei.com/account/transactions"
+PROFILE_HTML_FLAGS = ["--user-data-dir={PROF}", "--no-first-run",
+                      "--no-default-browser-check", "--disable-extensions",
+                      "--disable-background-mode", "--keep-alive",
+                      "--window-size=1100,800"]
 
 FLAGS_DUMP = ["--headless=new", "--disable-gpu", "--no-first-run",
               "--disable-extensions", "--disable-sync", "--no-default-browser-check",
@@ -31,7 +36,6 @@ FLAGS_DUMP = ["--headless=new", "--disable-gpu", "--no-first-run",
 FLAGS_HEADED = ["--user-data-dir={PROF}", "--no-first-run",
                 "--no-default-browser-check", "--disable-extensions",
                 "--window-size=1100,800"]
-
 _FETCH_TIMEOUT_S = 45.0
 
 
@@ -101,21 +105,30 @@ class PortalBrowser:
         try:
             cp = subprocess.run(cmd, capture_output=True, timeout=timeout_s)
         except subprocess.TimeoutExpired:
-            raise PortalKernelError("portal_fetch_failed",
-                                    "浏览器抓取超时(%ds)" % int(timeout_s))
+            raise PortalKernelError(
+                "portal_fetch_failed",
+                "浏览器抓取超时(%ds)。若本机 Edge/Chrome 正开着,请先全部关闭再试"
+                % int(timeout_s))
         out = (cp.stdout or b"").decode("utf-8", "replace")
         if not out.strip():
             # rc=0 但空输出 = 委托给既有浏览器进程失败(实测坑),或页面异常
             raise PortalKernelError(
                 "kernel_error",
-                "浏览器无输出(可能有同名浏览器窗口开着,请关闭后重试)")
+                "浏览器无输出——本机 Edge/Chrome 正开着会导致委托失败,"
+                "请关闭所有 Edge/Chrome 窗口后重试(或改用高级手动导入)")
         return out
 
+    def fetch_info_html(self, timeout_s=_FETCH_TIMEOUT_S):
+        """抓门户账号信息页 HTML(挖 KU_ userid 用)。"""
+        return self.fetch_dump(INFO_URL, timeout_s)
+
     def open_login_window(self, url=LOGIN_LANDING):
-        """打开 headed 登录窗口(非阻塞);返回 Popen。调用方持有引用等用户关闭。"""
+        """打开 headed 登录窗口(非阻塞);返回 Popen。调用方持有引用等用户关闭。
+        --disable-background-mode/--keep-alive:降低 Edge 启动加速导致的
+        "关窗后进程残留"概率(残留会让后续 headless 委托失败)。"""
         if not self.exe:
             raise PortalKernelError("bad_kernel", "未找到可用的浏览器内核(Edge/Chrome)")
-        cmd = [self.exe] + self._flags(FLAGS_HEADED) + [url]
+        cmd = [self.exe] + self._flags(PROFILE_HTML_FLAGS) + [url]
         return subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
 

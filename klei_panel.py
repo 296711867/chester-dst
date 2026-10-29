@@ -1046,13 +1046,23 @@ class PortalSession:
         return True, None
 
     def fetch_data_txns(self):
-        """拉 data.json → parse_portal_text 结果;壳页 → PortalParseError。"""
+        """拉 data.json → parse_portal_text 结果;壳页 → PortalParseError。
+        顺带挖 KU_ userid(data.json 没有该字段,从账号信息页 HTML 抓)。"""
         b = self._browser()
         dump = b.fetch_dump(PB_DATA_URL)
         j = self._extract_json(dump)
         if not isinstance(j, dict) or j.get("ok") is not True:
             raise PortalParseError("portal_not_logged_in",
                                    "门户会话已失效,请重新登录")
+        if not self.userid:
+            try:
+                import re
+                m = re.search(r"KU_[A-Za-z0-9]{1,32}",
+                              b.fetch_info_html())
+                if m:
+                    self.userid = m.group(0)
+            except Exception:
+                pass               # userid 挖取失败不阻断导入,只影响匹配提示
         # 复用粘贴解析器的校验(把已解析的 dict 包回文本,零重复逻辑)
         return parse_portal_text(json.dumps(j, ensure_ascii=False))
 
@@ -2031,12 +2041,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"ok": True,
                                     **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
         if path == "/api/portal/probe":
-            # 登录态检测:headless 拉 drops.json(用户显式触发,同步 45s 内)
+            # 登录态检测:headless 拉 drops.json(用户显式触发,同步 45s 内);
+            # 成功则顺带从账号信息页挖 KU_ userid(供前端匹配提示)
             ok, code = PORTAL.probe()
             if not ok:
                 return self._send_json({"ok": False, "code": code,
                                         **PORTAL.snapshot(registry=PANEL.registry_snapshot())},
                                        401)
+            if not PORTAL.userid:
+                try:
+                    import re
+                    m = re.search(r"KU_[A-Za-z0-9]{1,32}",
+                                  PORTAL._browser().fetch_info_html())
+                    if m:
+                        PORTAL.userid = m.group(0)
+                        PORTAL._save_cache(PORTAL.userid)
+                except Exception:
+                    pass
             return self._send_json({"ok": True,
                                     **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
         if path == "/api/portal/open_login":
@@ -2066,6 +2087,14 @@ class Handler(BaseHTTPRequestHandler):
             if PORTAL.state == "awaiting_login":
                 return self._send_json({"ok": False, "code": "login_window_open",
                                         "detail": "请先完成登录并关闭登录窗口"}, 409)
+            # 会话已知所属账号且在注册表内:强制一致,防把 A 账号历史导进 B 账号库
+            if PORTAL.userid and any(it["userid"] == PORTAL.userid
+                                     for it in PANEL.registry_snapshot()) \
+                    and uid != PORTAL.userid:
+                return self._send_json(
+                    {"ok": False, "code": "account_mismatch",
+                     "detail": "门户登录的是 %s,不能导入到 %s(防止导错账号库)"
+                               % (PORTAL.userid, uid)}, 409)
             try:
                 txns, extra = PORTAL.fetch_data_txns()
             except PortalParseError as e:

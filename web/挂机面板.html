@@ -1199,10 +1199,12 @@ $("impCancelLogin").addEventListener("click",function(){
 });
 $("impOnekey").addEventListener("click",function(){
   var p=portalCtx||{};
-  if(!p.userid)return setPortalNote("err",t("portal_unmatched"));
-  var sel=$("impAcct"),uid=sel.value||(lastAccountsData||[]).length===1?
-    (sel.value||((lastAccountsData||[])[0]||{}).userid):sel.value;
+  var accs=lastAccountsData||[];
+  var sel=$("impAcct");
+  var uid=sel.value||(accs.length===1?(accs[0]||{}).userid:"");
   if(!uid)return setPortalNote("err",t("imp_err_acct"));
+  if(p.userid&&p.matched&&p.userid!==uid)     /* 会话已知且在面板内:防导错库 */
+    return setPortalNote("err",t("portal_unmatched"));
   var b=$("impOnekey");b.disabled=true;setPortalNote("",t("imp_onekey_busy"));
   fetchJSON("/api/portal/onekey_import",{userid:uid}).then(function(r){
     b.disabled=false;
@@ -1214,7 +1216,9 @@ $("impOnekey").addEventListener("click",function(){
       refreshStatus();refreshData();
     }else{
       if(r&&r.portal)portalCtx=r.portal;
-      setPortalNote("err",t((r&&PORTAL_ERR_MAP[r.code])||"imp_err_server"));
+      if(r&&r.code==="account_mismatch")
+        setPortalNote("err",r.detail||t("portal_unmatched"));
+      else setPortalNote("err",t((r&&PORTAL_ERR_MAP[r.code])||"imp_err_server"));
       renderImpPortal();
     }
   }).catch(function(){b.disabled=false;setPortalNote("err",t("srv_down"))});
