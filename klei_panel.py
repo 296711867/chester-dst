@@ -1960,6 +1960,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/automation":
             # AI 自动化决策文档:一次 GET 拿全量(pending_actions/账号状态/每日聚合)
             return self._send_json(automation_snapshot(PANEL))
+        if path == "/api/portal/session_status":
+            # 只读端点,GET/POST 都放行(前端两处调用,历史上 GET 404 曾卡死向导状态)
+            return self._send_json({"ok": True,
+                                    **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
         return self._send_json({"error": "not found"}, 404)
 
     def do_POST(self):
