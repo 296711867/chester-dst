@@ -30,6 +30,7 @@
 | 🎁 **Auto-claim weekly gifts** | Heartbeats Klei every 360 s; gifts are receipted, opened and filed automatically. Weekly cap 8/8 with auto-pause. |
 | 🌅 **Daily-gift status at a glance** | Per-account claimed / due / probing chip (24h rolling window); auto-claimed on the next round. |
 | 🤖 **Local API for automation** | `GET /api/automation` returns full state + a pending-actions checklist — a scheduled task just follows it. |
+| 📜 **Portal history import** | Paste your Klei account portal `data.json` and a year of official per-item gift records (daily/weekly with week numbers) is back-filled into the local ledger. |
 | 🌙 **No game launch** | Logs in with a Steam session ticket; day-to-day it is pure HTTP — even the Steam client can stay closed. |
 | 👥 **Multi-account checkboxes** | One manual login per account, then tick-and-farm. Accounts stagger automatically, each with its own SQLite database. |
 | 🖼️ **3392-skin icon dex** | Every gift is annotated with its game icon, official English name and rarity color (data from dst-skins-checklist). |
@@ -82,6 +83,19 @@ Everything runs on `http://127.0.0.1:8377` (loopback only). For scripts / schedu
 
 See the Chinese README's "本地 API 与 AI 自动化" section for the full decision table.
 
+## 📜 Portal history import (v5.9)
+
+The Klei **web account portal** (accounts.klei.com) has a transactions page the game API never
+exposed. `GET /account/transactions/data.json` (with a logged-in session) returns **one year of
+official per-item transactions** — source type, exact time, item IDs, weekly-gift week numbers.
+
+In the panel: **Gift log → Import history**, follow the 3 steps (sign in → open the data.json
+link → paste). Parsing validates shape/time, then back-fills the account ledger idempotently
+(exact Item-ID dedup; a ±10-min window only when both IDs are missing). Imported daily gifts map
+to `daily` and weekly gifts to `tick`, so the X/8 bar and daily-gift status become accurate
+immediately. The back-fill refreshes the cap-suspect snapshot under the same lock, so the jump
+never falsely clears a muted suspect state.
+
 ## 🔒 Security notes
 
 - Tokens equal a Klei login credential: `credentials/` is git-ignored and must never be shared.
@@ -103,6 +117,7 @@ See the Chinese README's "本地 API 与 AI 自动化" section for the full deci
 
 ## 🧾 Changelog (abridged)
 
+- **v5.9** — portal history import: paste Klei portal `data.json`, one year of official daily/weekly gift records back-filled per account (idempotent, Item-ID dedup); gift-table filter chips + load-older.
 - **v5.8** — system-tray app (no console window; pure-ctypes tray icon, right-click menu, single-instance guard, windowed log to `_run.log`); daily-gift status per account (claimed/probing/due, local ledger as single source of truth — Klei has **no** gift-history endpoint, verified by exe string mining); **local automation API**: `GET /api/automation` decision document with a pending-actions checklist, `/api/gifts` query params (since/source/account/limit/offset); weekly card relabeled "rolling 7d"; +51 tests.
 - **v1.2** — renamed to Chester; visual polish pass.
 - **v5.7.2** — skin DB refreshed to 3,392 items (+439 with icons: backpacks, bedrolls, formal wear…); gift-pool items now 100% Chinese-labeled (lexicon +300 words).

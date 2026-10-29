@@ -344,6 +344,27 @@ class TFrontend(unittest.TestCase):
                 self.assertNotIn("~", m,
                                   "%s 模板含 '~' 会与 fmtRel 叠成 '~~'" % key)
 
+    def test_i18n_portal_import_keys_both_langs(self):
+        # v5.9 门户导入向导:i18n 键双语言齐
+        keys = ["imp_open", "imp_title", "imp_close", "imp_step1", "imp_step2",
+                "imp_step3", "imp_open_login", "imp_open_data", "imp_acct",
+                "imp_placeholder", "imp_go", "imp_busy", "imp_done", "imp_scope",
+                "imp_range", "imp_reimport", "imp_done_zero", "imp_err_empty",
+                "imp_err_html", "imp_err_format", "imp_err_acct", "imp_err_server",
+                "flt_all", "gift_more", "gifts_sub_filter"]
+        for key in keys:
+            self.assertEqual(self.html.count(key + ":"), 2,
+                             "%s 应在 zh/en 两套字典各出现一次" % key)
+
+    def test_import_wizard_wired(self):
+        for i in ("impBtn", "impMask", "impText", "impGo", "impAcct", "impNote",
+                  "giftFlt", "giftMore", "giftsSub"):
+            self.assertIn('id="%s"' % i, self.html, "缺少 %s 接线" % i)
+        self.assertIn("https://accounts.klei.com/account/transactions/data.json", self.html)
+        self.assertIn('rel="noopener noreferrer"', self.html)
+        self.assertIn('/api/gifts/import', self.html)
+        self.assertIn("loadGiftPage", self.html)
+
     def test_prog_grid_four_cols(self):
         self.assertIn("grid-template-columns:1.2fr 1fr 1fr 1fr", self.html)
         self.assertIn("grid-template-columns:1fr 1fr", self.html)   # 移动端 2 列

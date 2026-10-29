@@ -218,6 +218,22 @@ label{color:var(--text-2);font-size:13px}
 .dchip.claimed{background:var(--muted-bg);color:var(--ok)}
 .dchip.due{background:var(--amber-soft);color:var(--amber)}
 .dchip.probing,.dchip.norec{background:var(--muted-bg);color:var(--text-2)}
+/* ---- 门户历史导入 ---- */
+.fltbar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.fltbar .btn.active{border-color:var(--accent-fg);color:var(--accent-fg)}
+.imp-dlg{max-width:560px}
+.imp-steps{margin:6px 0 10px;padding-left:22px;font-size:13px;line-height:1.7}
+.imp-link{margin-left:8px;font-size:12px;white-space:nowrap}
+.imp-acct-row{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
+.imp-sel{flex:1;background:var(--muted-bg);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:6px 8px;font-size:13px}
+#impText{width:100%;box-sizing:border-box;background:var(--muted-bg);
+  border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;
+  font:12px/1.5 var(--mono);resize:vertical}
+.imp-note{min-height:1.3em;font-size:12.5px;margin-top:6px}
+.imp-note.err{color:var(--err-fg)}
+.imp-note.ok{color:var(--ok)}
+.imp-reimport{font-size:11.5px;color:var(--text-2);margin-bottom:6px}
 #askBanner{flex-basis:100%;order:10;display:flex;align-items:center;gap:8px;
   background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);
   border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;
@@ -408,12 +424,22 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
     <h2><img class="hicon" src="/assets/icons/gift.png" alt="">
       <span data-i18n="gifts">礼物记录</span>
       <span style="flex:1"></span>
-      <span class="muted" style="font-size:12px" data-i18n="gifts_sub"></span>
+      <button class="btn btn-ghost btn-sm" id="impBtn" data-i18n="imp_open">导入历史</button>
+      <span class="muted" style="font-size:12px" id="giftsSub" data-i18n="gifts_sub"></span>
     </h2>
+    <div class="fltbar" id="giftFlt">
+      <button class="btn btn-ghost btn-sm active" data-src="" data-i18n="flt_all">全部</button>
+      <button class="btn btn-ghost btn-sm" data-src="tick" data-i18n="src_tick">周礼</button>
+      <button class="btn btn-ghost btn-sm" data-src="daily" data-i18n="src_daily">每日礼</button>
+      <button class="btn btn-ghost btn-sm" data-src="box" data-i18n="src_box">神秘箱</button>
+    </div>
     <div class="tblwrap"><table id="giftsTbl">
       <tr><th data-i18n="th_time"></th><th data-i18n="th_gift"></th><th data-i18n="th_id"></th>
           <th data-i18n="th_source"></th><th data-i18n="th_account"></th></tr>
-    </table></div>
+    </table>
+    <div style="text-align:center;padding:6px 0">
+      <button class="btn btn-ghost btn-sm" id="giftMore" data-i18n="gift_more" hidden>加载更早记录</button>
+    </div></div>
   </section>
 
   <details class="card logs" id="logsCard">
@@ -452,6 +478,33 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
     </div>
   </div>
 </div>
+
+<div class="mask" id="impMask" hidden>
+  <div class="dlg card imp-dlg" role="dialog" aria-modal="true" aria-labelledby="impTitle">
+    <h3 id="impTitle" data-i18n="imp_title">导入 Klei 门户历史礼物</h3>
+    <ol class="imp-steps">
+      <li><span data-i18n="imp_step1">浏览器打开并登录 accounts.klei.com</span>
+        <a class="imp-link" href="https://accounts.klei.com/login/steam" target="_blank" rel="noopener noreferrer" data-i18n="imp_open_login">打开登录页 ↗</a></li>
+      <li><span data-i18n="imp_step2">地址栏打开数据页 data.json</span>
+        <a class="imp-link" href="https://accounts.klei.com/account/transactions/data.json" target="_blank" rel="noopener noreferrer" data-i18n="imp_open_data">打开数据页 ↗</a></li>
+      <li><span data-i18n="imp_step3">全选复制页面全部内容,粘贴到下方输入框</span></li>
+    </ol>
+    <div class="imp-acct-row"><span data-i18n="imp_acct">导入到账号</span>
+      <select id="impAcct" class="imp-sel"></select></div>
+    <textarea id="impText" rows="7" data-i18n-ph="imp_placeholder" placeholder="粘贴 data.json 页面全部内容…"></textarea>
+    <div class="imp-note" id="impNote"></div>
+    <div class="imp-reimport" data-i18n="imp_reimport">重复导入同一份文件不会产生重复记录</div>
+    <div class="sus-btns">
+      <button class="btn btn-ghost" id="impClose" data-i18n="imp_close">关闭</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-primary" id="impGo" data-i18n="imp_go">开始导入</button>
+    </div>
+  </div>
+</div>
+
+<div id="impToast" class="imp-note ok" hidden style="position:fixed;left:50%;bottom:26px;
+  transform:translateX(-50%);background:var(--card,rgba(0,0,0,.85));border:1px solid var(--line);
+  border-radius:10px;padding:10px 18px;font-size:13px;z-index:99;box-shadow:0 4px 18px rgba(0,0,0,.25)"></div>
 
 </div>
 <script>
@@ -494,6 +547,23 @@ zh:{
   daily_tip_norec:"本面板尚无该账号每日礼记录(面板外的领取不可见),运行后将自动尝试",
   daily_tip_off:"全局设置已关闭每日登录礼",
   week_capped_n:"已领满 %c/%N 个账号",
+  imp_open:"导入历史", imp_title:"导入 Klei 门户历史礼物", imp_close:"关闭",
+  imp_step1:"浏览器打开并登录 accounts.klei.com", imp_step2:"地址栏打开数据页 data.json",
+  imp_step3:"全选复制页面全部内容,粘贴到下方输入框",
+  imp_open_login:"打开登录页 ↗", imp_open_data:"打开数据页 ↗",
+  imp_acct:"导入到账号", imp_placeholder:"粘贴 data.json 页面全部内容…",
+  imp_go:"开始导入", imp_busy:"解析导入中…",
+  imp_done:"导入成功:新礼物 %m 件 · 跳过重复 %d",
+  imp_scope:"已导入到账号 %s", imp_range:"覆盖 %a ~ %b",
+  imp_reimport:"重复导入同一份文件不会产生重复记录",
+  imp_done_zero:"解析成功,但其中没有每日礼/周礼条目",
+  imp_err_empty:"请先粘贴内容",
+  imp_err_html:"粘贴的是网页而不是数据——请先登录 accounts.klei.com,再打开 data.json 链接",
+  imp_err_format:"内容解析失败:不是有效的礼物数据 JSON",
+  imp_err_acct:"请选择要导入到的账号",
+  imp_err_server:"导入失败,请重试",
+  imp_err_too_large:"内容超过 512KB——请确认复制的是 data.json 页面",
+  flt_all:"全部", gift_more:"加载更早记录", gifts_sub_filter:"已筛选:%s",
   logs:"运行日志", cur_acct:"当前账号", ticks2:"心跳", events:"事件",
   tab_hb:"心跳流水", tab_ev:"事件",
   footer1:"Chester 是你的随行礼物箱 · 详细教程见根目录 挂机指南.html · 只监听 127.0.0.1,不含任何 token",
@@ -549,6 +619,23 @@ en:{
   daily_tip_norec:"No daily-gift record for this account (claims outside this panel are invisible); auto-tries when running",
   daily_tip_off:"Daily gift disabled in global settings",
   week_capped_n:"%c/%N accounts capped",
+  imp_open:"Import history", imp_title:"Import Klei portal gift history", imp_close:"Close",
+  imp_step1:"Open accounts.klei.com in your browser and sign in", imp_step2:"In the address bar open the data.json page",
+  imp_step3:"Select all, copy the page content, paste it below",
+  imp_open_login:"Open login page ↗", imp_open_data:"Open data page ↗",
+  imp_acct:"Import into account", imp_placeholder:"Paste the entire data.json page content…",
+  imp_go:"Import", imp_busy:"Parsing & importing…",
+  imp_done:"Imported: %m new gifts · %d duplicates skipped",
+  imp_scope:"Imported into account %s", imp_range:"Coverage %a ~ %b",
+  imp_reimport:"Re-importing the same file creates no duplicates",
+  imp_done_zero:"Parsed OK, but no daily/weekly gift entries inside",
+  imp_err_empty:"Paste something first",
+  imp_err_html:"That looks like a web page, not data — sign in to accounts.klei.com first, then open the data.json link",
+  imp_err_format:"Parse failed: not valid gift-data JSON",
+  imp_err_acct:"Choose an account first",
+  imp_err_server:"Import failed, retry",
+  imp_err_too_large:"Over 512KB — make sure you copied the data.json page",
+  flt_all:"All", gift_more:"Load older", gifts_sub_filter:"Filtered: %s",
   logs:"Logs", cur_acct:"current acct", ticks2:"ticks", events:"events",
   tab_hb:"Heartbeats", tab_ev:"Events",
   footer1:"Full guide: 挂机指南.html in project root · Panel listens on 127.0.0.1 only, contains no tokens",
@@ -590,6 +677,11 @@ function applyLang(){
     el.textContent=v;
     if(keep)el.insertBefore(keep,el.firstChild);
   });
+  document.querySelectorAll("[data-i18n-ph]").forEach(function(el){
+    el.setAttribute("placeholder",t(el.getAttribute("data-i18n-ph")))});
+  document.querySelectorAll("#giftFlt button").forEach(function(el){
+    el.textContent=t(el.dataset.src?"src_"+el.dataset.src:"flt_all")});
+  syncGiftsSub();                 // 语言切换不丢当前筛选指示
   $("langBtn").textContent=lang==="zh"?"EN":"中文";
   document.documentElement.setAttribute("data-theme",skin);
   $("skinSel").value=skin;
@@ -827,34 +919,108 @@ function refreshStatus(){
     handleSuspects(s.suspects);
   }).catch(function(){});
 }
+/* ===== 礼物表过滤 + 加载更早 + 门户历史导入(v5.9) ===== */
+var giftSrc="",giftOffset=0,giftRows=[];
+var IMP_ERR_MAP={not_logged_in_page:"imp_err_html",bad_json:"imp_err_format",
+                 bad_shape:"imp_err_format",portal_says_no:"imp_err_format",
+                 no_transactions:"imp_done_zero",too_large:"imp_err_too_large",
+                 bad_account:"imp_err_acct"};
+function giftsUrl(){
+  return "/api/gifts?limit=50&offset="+giftOffset+(giftSrc?"&source="+giftSrc:"");
+}
+function syncGiftsSub(){
+  var sub=$("giftsSub");
+  if(sub)sub.textContent=giftSrc?t("gifts_sub_filter").replace("%s",t("src_"+giftSrc)):t("gifts_sub");
+}
+function renderGiftRows(){
+  setRows($("giftsTbl"),giftRows,[
+    {h:t("th_time"),f:function(r){return fmtTs(r.ts)},num:1},
+    {h:t("th_gift"),f:function(r){
+      var zhLabel=r.item_label&&r.item_label!==r.item_type;
+      var primary=lang==="en"?(r.en_name||r.item_type):(zhLabel?r.item_label:r.item_type);
+      var secondary=primary===r.item_type?(zhLabel?r.item_label:""):r.item_type;
+      var rarity=lang==="en"?(r.rarity||""):(r.rarity_zh||"");
+      var rk=((r.rarity||"common").toLowerCase().replace(/\s+/g,"-"));
+      var ic=r.icon?"<img class='gift-ic' src='"+esc(r.icon)+"' alt=''>":"";
+      var sub=secondary?"<div class='rawcode'>"+esc(secondary)+
+        (rarity?" · <span class='rar rar-"+rk+"'>"+esc(rarity)+"</span>":"")+"</div>":"";
+      return "<span class='gift-cell rar rar-"+rk+"'>"+ic+
+        "<span class='gift-name'>"+esc(primary)+"</span></span>"+sub;
+     },
+     html:1},
+    {h:t("th_id"),f:function(r){return (r.item_id>0?String(r.item_id).slice(-6):"—")},num:1},
+    {h:t("th_source"),f:function(r){
+      var img={tick:"weekly",daily:"gift",box:"mysterybox"}[r.source];
+      var ic=img?"<img src='/assets/icons/"+img+".png' alt=''>":"";
+      var lbl=I18N[lang]&&I18N[lang]["src_"+r.source];
+      if(!lbl)lbl=I18N.zh["src_"+r.source]||r.source_label||r.source;
+      return "<span class='src "+esc(r.source)+"'>"+ic+esc(lbl)+"</span>"},
+     html:1},
+    {h:t("th_account"),f:function(r){return "<span class='acc-tag'>"+esc(r.account||"—")+"</span>"},html:1}]);
+}
 function refreshData(){
-  fetchJSON("/api/gifts?limit=50").then(function(d){
-    setRows($("giftsTbl"),d.rows,[
-      {h:t("th_time"),f:function(r){return fmtTs(r.ts)},num:1},
-      {h:t("th_gift"),f:function(r){
-        var zhLabel=r.item_label&&r.item_label!==r.item_type;
-        var primary=lang==="en"?(r.en_name||r.item_type):(zhLabel?r.item_label:r.item_type);
-        var secondary=primary===r.item_type?(zhLabel?r.item_label:""):r.item_type;
-        var rarity=lang==="en"?(r.rarity||""):(r.rarity_zh||"");
-        var rk=((r.rarity||"common").toLowerCase().replace(/\s+/g,"-"));
-        var ic=r.icon?"<img class='gift-ic' src='"+esc(r.icon)+"' alt=''>":"";
-        var sub=secondary?"<div class='rawcode'>"+esc(secondary)+
-          (rarity?" · <span class='rar rar-"+rk+"'>"+esc(rarity)+"</span>":"")+"</div>":"";
-        return "<span class='gift-cell rar rar-"+rk+"'>"+ic+
-          "<span class='gift-name'>"+esc(primary)+"</span></span>"+sub;
-       },
-       html:1},
-      {h:t("th_id"),f:function(r){return r.item_id||"—"},num:1},
-      {h:t("th_source"),f:function(r){
-        var img={tick:"weekly",daily:"gift",box:"mysterybox"}[r.source];
-        var ic=img?"<img src='/assets/icons/"+img+".png' alt=''>":"";
-        var lbl=I18N[lang]&&I18N[lang]["src_"+r.source];
-        if(!lbl)lbl=I18N.zh["src_"+r.source]||r.source_label||r.source;
-        return "<span class='src "+esc(r.source)+"'>"+ic+esc(lbl)+"</span>"},
-       html:1},
-      {h:t("th_account"),f:function(r){return "<span class='acc-tag'>"+esc(r.account||"—")+"</span>"},html:1}]);
+  giftOffset=0;giftRows=[];
+  loadGiftPage(false);
+}
+function loadGiftPage(append){
+  fetchJSON(giftsUrl()).then(function(d){
+    var batch=d.rows||[];
+    giftRows=append?giftRows.concat(batch):batch;
+    renderGiftRows();
+    $("giftMore").hidden=batch.length<50;   // 不满一页说明到底了
   }).catch(function(){});
 }
+$("giftFlt").addEventListener("click",function(ev){
+  var b=ev.target.closest("button[data-src]");if(!b)return;
+  giftSrc=b.dataset.src;giftOffset=0;
+  document.querySelectorAll("#giftFlt button").forEach(function(x){
+    x.classList.toggle("active",x===b)});
+  syncGiftsSub();
+  refreshData();
+});
+$("giftMore").addEventListener("click",function(){
+  giftOffset+=50;loadGiftPage(true);
+});
+function setImpNote(kind,txt){var n=$("impNote");n.className="imp-note "+kind;n.textContent=txt;}
+var toastTimer=null;
+function toast(msg){                 /* 全局提示条:模态关闭后也可见 */
+  var t=$("impToast");t.textContent=msg;t.hidden=false;
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.hidden=true;},6000);
+}
+$("impBtn").addEventListener("click",function(){
+  $("impText").value="";setImpNote("","");
+  var accs=lastAccountsData||[];
+  var sel=$("impAcct");
+  sel.innerHTML=accs.map(function(a){
+    return "<option value='"+esc(a.userid)+"'>"+esc(a.alias||a.userid)+"</option>"}).join("");
+  sel.parentNode.hidden=(accs.length<2);
+  $("impGo").disabled=(accs.length<1);
+  $("impMask").hidden=false;
+});
+$("impClose").addEventListener("click",function(){$("impMask").hidden=true;});
+$("impGo").addEventListener("click",function(){
+  var text=$("impText").value.trim();
+  if(!text)return setImpNote("err",t("imp_err_empty"));
+  if(/^</.test(text)||/<!doctype|<html/i.test(text))
+    return setImpNote("err",t("imp_err_html"));
+  var uid=$("impAcct").value;
+  if(!uid)return setImpNote("err",t("imp_err_acct"));
+  var btn=$("impGo");btn.disabled=true;setImpNote("",t("imp_busy"));
+  fetchJSON("/api/gifts/import",{userid:uid,text:text}).then(function(r){
+    btn.disabled=false;
+    if(r&&r.ok){
+      var okmsg=t("imp_done").replace("%m",r.gifts_backfilled)
+        .replace("%d",r.gifts_deduped)+" · "+t("imp_scope").replace("%s",uid)+" · "+
+        t("imp_range").replace("%a",fmtTs(r.time_min)).replace("%b",fmtTs(r.time_max));
+      $("impMask").hidden=true;        // 先关模态
+      toast(okmsg);                    // 再全局提示(模态内的 impNote 已不可见)
+      refreshStatus();refreshData();
+    }else{
+      setImpNote("err",t((r&&IMP_ERR_MAP[r.code])||"imp_err_server"));
+    }
+  }).catch(function(){btn.disabled=false;setImpNote("err",t("srv_down"))});
+});
 var logsOpen=false,curLog="hb";
 $("logsCard").addEventListener("toggle",function(){
   logsOpen=$("logsCard").open;
@@ -988,7 +1154,9 @@ function handleSuspects(list){
 applyLang();
 refreshStatus();refreshData();
 setInterval(refreshStatus,3000);
-setInterval(refreshData,10000);
+setInterval(function(){           // 用户翻历史页(giftOffset>0)时不重置分页态
+  if(giftOffset===0)refreshData();
+},10000);
 setInterval(refreshLogs,15000);
 </script>
 </body>

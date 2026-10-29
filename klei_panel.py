@@ -374,6 +374,109 @@ def label_item(item_type):
 
 SOURCE_ZH = {"tick": "周礼", "daily": "每日礼", "box": "神秘箱"}
 
+# ---- 门户历史导入(v5.9):Klei 网页门户 /account/transactions/data.json ----
+PORTAL_TEXT_MAX_BYTES = 512 * 1024   # 一年 data.json 实测 ~50KB,留 10 倍余量
+PORTAL_TIME_MIN = 1577836800.0       # 2020-01-01 UTC,门户交易不可能更早
+PORTAL_TIME_MAX_SKEW = 86400.0       # 允许 Time 超前 1 天(本机时钟偏慢兜底)
+BACKFILL_TS_WINDOW_S = 600.0         # item_id 缺失时按类型+±10 分钟去重
+PORTAL_GIFT_SOURCES = {              # 官方逐笔来源 → 面板礼物通道(权威事实,直接回填)
+    "TXN_DAILY_GIFT_ITEM": "daily",
+    "TXN_WEEKLY_GIFT_ITEM": "tick",
+}
+
+
+class PortalParseError(ValueError):
+    """携带 .code 与 .detail(中文指引),HTTP 层原样转译。"""
+
+    def __init__(self, code, detail):
+        super().__init__(detail)
+        self.code = code
+        self.detail = detail
+
+
+def _portal_norm_items(raw):
+    """ItemGains/ItemLosses → [{id,type,image}];非法条目收敛为 id=0。
+    ID 超过 SQLite INTEGER 上限(2^63-1)也收敛为 0(落窗口去重,不炸入库)。"""
+    out = []
+    for it in raw or []:
+        if not isinstance(it, dict):
+            continue
+        try:
+            iid = int(it.get("ID") or it.get("InstanceID") or 0)
+        except (TypeError, ValueError):
+            iid = 0
+        if not (0 <= iid < 2 ** 63):
+            iid = 0
+        out.append({"id": iid, "type": str(it.get("Type") or it.get("Item") or ""),
+                    "image": str(it.get("ImageURL") or "")})
+    return out
+
+
+def parse_portal_text(text, now=None):
+    """粘贴文本 → 礼物交易列表(仅 PORTAL_GIFT_SOURCES 两类),纯函数不碰 DB。
+    返回 (txns, {"dropped":n}):
+      txns = [{"time","type","source","items":[{id,type}]}...] 按时间升序。
+    抛 PortalParseError(code ∈ not_logged_in_page|bad_json|bad_shape|
+                        portal_says_no|no_transactions|too_large)。"""
+    now = time.time() if now is None else float(now)
+    if not isinstance(text, str) or not text.strip():
+        raise PortalParseError("bad_json", "粘贴内容为空")
+    if len(text.encode("utf-8")) > PORTAL_TEXT_MAX_BYTES:
+        raise PortalParseError("too_large",
+                               "粘贴内容超过 512KB,请确认复制的是 data.json 页面")
+    s = text.strip().lstrip("\ufeff").strip()
+    head = s[:2000].lstrip().lower()
+    if (head.startswith(("<!doctype", "<html", "<head", "<body"))
+            or ("accounts.klei.com" in head and "<form" in s.lower())):
+        raise PortalParseError(
+            "not_logged_in_page",
+            "粘贴的是网页而不是数据:请先在浏览器登录 accounts.klei.com,"
+            "再打开 https://accounts.klei.com/account/transactions/data.json,"
+            "全选复制 JSON 文本后重新粘贴")
+    j = None
+    for cand in (s, s[s.find("{"): s.rfind("}") + 1] if "{" in s and "}" in s else ""):
+        if not cand:
+            continue
+        try:
+            j = json.loads(cand)
+            break
+        except json.JSONDecodeError:
+            continue
+    if j is None:
+        raise PortalParseError("bad_json",
+                               "不是合法 JSON:复制可能不完整,请回浏览器重新全选复制")
+    if not isinstance(j, dict) or not isinstance(j.get("data"), dict):
+        raise PortalParseError("bad_shape", "JSON 结构不对:缺 data 字段,确认打开的是 data.json")
+    if j.get("ok") is not True:
+        raise PortalParseError("portal_says_no", "门户返回失败(会话可能过期,请刷新页面重新复制)")
+    txns_raw = j["data"].get("Transactions")
+    if not isinstance(txns_raw, list) or not txns_raw:
+        raise PortalParseError("no_transactions", "没有交易记录(该账号近一年可能无门户交易)")
+
+    txns, dropped = [], 0
+    for t in txns_raw:
+        if not isinstance(t, dict):
+            dropped += 1
+            continue
+        tm = t.get("Time")
+        if (not isinstance(tm, (int, float)) or isinstance(tm, bool)
+                or not (PORTAL_TIME_MIN <= tm <= now + PORTAL_TIME_MAX_SKEW)):
+            dropped += 1
+            continue
+        typ = t.get("Type")
+        src = PORTAL_GIFT_SOURCES.get(typ) if isinstance(typ, str) else None
+        if not src:
+            continue                       # 非礼物交易(编织/市场/Twitch…)v1 不导
+        items = [it for it in _portal_norm_items(t.get("ItemGains")) if it["type"]]
+        if not items:
+            continue
+        txns.append({"time": float(tm), "type": typ, "source": src, "items": items})
+    if not txns:
+        raise PortalParseError("no_transactions",
+                               "解析成功,但其中没有每日礼/周礼条目")
+    txns.sort(key=lambda x: x["time"])
+    return txns, {"dropped": dropped}
+
 # ---------------------------------------------------------------- 全量皮肤库
 # 数据源:dst-skins-checklist.github.io(3392 件:原码→英文名/收藏组/稀有度+图标;
 #          _skins_db_refresh.py 可从上游刷新)
@@ -437,6 +540,45 @@ class AccountStore:
             self.db.execute("INSERT INTO gifts(ts,item_type,item_id,source) VALUES(?,?,?,?)",
                             (time.time(), str(item_type), int(item_id or 0), source))
             self.db.commit()
+
+    def add_gift_at(self, ts, item_type, item_id, source):
+        """显式时间戳写入——仅门户历史回填使用(实时路径仍走 add_gift)。"""
+        self.db.execute("INSERT INTO gifts(ts,item_type,item_id,source) VALUES(?,?,?,?)",
+                        (float(ts), str(item_type), int(item_id or 0), source))
+
+    def _gift_exists(self, item_id, item_type, ts):
+        """回填去重:ItemID 精确命中为主;仅当两边 ID 都缺失(=0)才按类型+±10 分钟窗口兜底
+        (ID 在场但未命中时绝不落窗口——批量连开同类型多件是真实形态,不能互相吞)。"""
+        if item_id > 0:
+            r = self.db.execute(
+                "SELECT 1 FROM gifts WHERE item_id=? LIMIT 1", (item_id,)).fetchone()
+            return bool(r)
+        r = self.db.execute(
+            "SELECT 1 FROM gifts WHERE item_id=0 AND item_type=? AND ts BETWEEN ? AND ? LIMIT 1",
+            (item_type, ts - BACKFILL_TS_WINDOW_S, ts + BACKFILL_TS_WINDOW_S)).fetchone()
+        return bool(r)
+
+    def import_portal_gifts(self, txns, now=None):
+        """parse_portal_text 结果 → 回填 gifts 表。幂等;返回统计 dict。
+        全程持 DB_LOCK:回填与 SUSPECT_META_WEEKLY 快照刷新原子化——
+        回填造成的周礼窗口跳变(如 0→6)对 eval_suspect 不可见,不会误清 mute。"""
+        now = time.time() if now is None else float(now)
+        with DB_LOCK:
+            backfilled = deduped = 0
+            for t in txns:                          # 时间升序,贴近自然发生序
+                for it in t["items"]:
+                    if self._gift_exists(it["id"], it["type"], t["time"]):
+                        deduped += 1
+                    else:
+                        self.add_gift_at(t["time"], it["type"], it["id"], t["source"])
+                        backfilled += 1
+            weekly_now = self.db.execute(
+                "SELECT COUNT(*) FROM gifts WHERE ts>? AND source='tick'",
+                (now - CAP_WINDOW,)).fetchone()[0]
+            self.set_meta(SUSPECT_META_WEEKLY, repr(int(weekly_now)))
+            self.db.commit()
+        return {"gifts_backfilled": backfilled, "gifts_deduped": deduped,
+                "weekly_after": int(weekly_now)}
 
     def add_event(self, kind, detail=""):
         with DB_LOCK:
@@ -1685,6 +1827,48 @@ class Handler(BaseHTTPRequestHandler):
             PANEL.apply_settings(merged)
             ok, msg = PANEL.start(merged["interval"])
             return self._send_json({"ok": ok, "message": msg}, 200 if ok else 409)
+        if path == "/api/gifts/import":
+            # 门户历史导入:粘贴的 data.json 文本 → 解析 → 回填该账号 gifts 表
+            body = self._read_body_json()
+            if not isinstance(body, dict):
+                return self._send_json({"ok": False, "code": "bad_json",
+                                        "detail": "请求体不是 JSON"}, 400)
+            uid = body.get("userid") or ""
+            uid_ok = (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
+                      and all(c.isalnum() or c in "_-" for c in uid[3:]))
+            if not uid_ok:
+                return self._send_json({"ok": False, "code": "bad_account",
+                                        "detail": "账号 ID 非法"}, 400)
+            if not any(it["userid"] == uid for it in PANEL.registry_snapshot()):
+                return self._send_json({"ok": False, "code": "bad_account",
+                                        "detail": "未知账号,请先在面板添加该账号"}, 404)
+            text = body.get("text")
+            try:
+                txns, extra = parse_portal_text(text)
+            except PortalParseError as e:
+                return self._send_json({"ok": False, "code": e.code,
+                                        "detail": e.detail}, 400)
+            store = AccountStore(uid)
+            try:
+                stats = store.import_portal_gifts(txns)
+            except Exception:
+                # 入库期异常(磁盘满/库损坏/极端数据):关连接回滚,统一 500 JSON
+                try:
+                    with DB_LOCK:
+                        store.db.close()
+                except Exception:
+                    pass
+                return self._send_json({"ok": False, "code": "import_failed",
+                                        "detail": "导入写入失败,请重试"}, 500)
+            stats.update({"parsed": len(txns), "dropped": extra["dropped"],
+                          "time_min": txns[0]["time"], "time_max": txns[-1]["time"]})
+            emit_event(store, "portal_import",
+                       "导入历史:回填 %d 件礼物(去重 %d),本周周礼 %d" %
+                       (stats["gifts_backfilled"], stats["gifts_deduped"],
+                        stats["weekly_after"]))
+            with DB_LOCK:
+                store.db.close()
+            return self._send_json({"ok": True, **stats})
         if path == "/api/quit":
             # 整程序退出(托盘「退出」的无头等价物):先回包再触发,客户端不会看到连接重置
             self._send_json({"ok": True})
