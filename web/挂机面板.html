@@ -436,6 +436,7 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
       <span data-i18n="gifts">礼物记录</span>
       <span style="flex:1"></span>
       <button class="btn btn-ghost btn-sm" id="impBtn" data-i18n="imp_open">导入历史</button>
+      <button class="btn btn-ghost btn-sm" id="clearHdr" data-i18n="clear_gifts">清空记录</button>
       <span class="muted" style="font-size:12px" id="giftsSub" data-i18n="gifts_sub"></span>
     </h2>
     <div class="fltbar" id="giftFlt">
@@ -1284,8 +1285,9 @@ $("impClose").addEventListener("click",function(){
 });
 /* ===== 清空本地礼物记录(两击确认,自动备份) ===== */
 var clearArmed=false,clearTimer=null;
-$("impClear").addEventListener("click",function(){
-  var b=$("impClear"),accs=lastAccountsData||[];
+function clearArmFlow(b){
+  if(!b.dataset.orig)b.dataset.orig=b.textContent;   /* 各按钮保留自己的原始文案 */
+  var accs=lastAccountsData||[];
   var uid=$("impAcct").value||(accs.length===1?(accs[0]||{}).userid:"");
   if(!uid)return toast(t("imp_err_acct"));
   if(!clearArmed){                        /* 第一击:进入武装态 */
@@ -1295,22 +1297,24 @@ $("impClear").addEventListener("click",function(){
     if(clearTimer)clearTimeout(clearTimer);
     clearTimer=setTimeout(function(){      /* 5 秒不点第二击自动解除 */
       clearArmed=false;b.classList.remove("armed");
-      b.textContent=t("clear_gifts");
+      b.textContent=b.dataset.orig;
     },5000);
     return;
   }
   clearArmed=false;clearTimer&&clearTimeout(clearTimer);
   b.classList.remove("armed");b.disabled=true;
   fetchJSON("/api/gifts/clear",{userid:uid}).then(function(r){
-    b.disabled=false;b.textContent=t("clear_gifts");
+    b.disabled=false;b.textContent=b.dataset.orig;
     if(r&&r.ok){
       toast(t("clear_gifts_done").replace("%d",r.deleted)
         .replace("%s",r.backup||"—"));
       refreshStatus();refreshData();
     }else toast(t("imp_err_server"));
-  }).catch(function(){b.disabled=false;b.textContent=t("clear_gifts");
+  }).catch(function(){b.disabled=false;b.textContent=b.dataset.orig;
     toast(t("srv_down"))});
-});
+}
+$("impClear").addEventListener("click",function(){clearArmFlow($("impClear"))});
+$("clearHdr").addEventListener("click",function(){clearArmFlow($("clearHdr"))});
 var logsOpen=false,curLog="hb";
 $("logsCard").addEventListener("toggle",function(){
   logsOpen=$("logsCard").open;
