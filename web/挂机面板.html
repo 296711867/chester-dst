@@ -611,7 +611,7 @@ zh:{
   portal_state_none:"第一步:打开登录窗口并在其中登录",
   portal_state_wait:"第二步:等待你在登录窗口完成登录…",
   portal_state_ready:"已连接 ✓ 可以一键导入了", portal_state_expired:"门户登录已过期,请重新登录",
-  portal_state_error:"门户连接出错",
+  portal_state_error:"门户连接出错——关闭本机所有 Edge/Chrome 窗口后,点「打开登录窗口」重试",
   portal_connected:"门户已连接 ✓", imp_probe_busy:"正在检测门户登录…(约 10 秒,期间请勿关闭本窗口)",
   portal_unmatched:"该 Klei 账号尚未添加到面板",
   portal_recon_more:"官方比本地多 %d 件(面板外领取),一键导入可补全",
@@ -706,7 +706,7 @@ en:{
   portal_state_none:"Step 1: open the login window and sign in",
   portal_state_wait:"Step 2: waiting for you to sign in…",
   portal_state_ready:"Connected ✓ ready to import", portal_state_expired:"Portal session expired, sign in again",
-  portal_state_error:"Portal error",
+  portal_state_error:"Portal error — close all Edge/Chrome windows, then retry via the login window",
   portal_connected:"Portal connected ✓", imp_probe_busy:"Probing portal sign-in… (~10s, keep this window open)",
   portal_unmatched:"This Klei account is not in the panel yet",
   portal_recon_more:"Official shows %d more (claimed outside panel) — one-click import can backfill",
@@ -1182,6 +1182,18 @@ function startPortalPoll(ms){
       renderImpPortal();
     }).catch(function(){});
   },ms);}
+function autoProbe(){
+  /* 打开向导时自动探测:会话仍有效就直接就绪,不弹登录窗打扰 */
+  if(portalBusy)return;
+  portalBusy=true;portalCtx._busy=t("imp_probe_busy");
+  renderImpPortal();
+  fetchJSON("/api/portal/probe",{}).then(function(r){
+    portalBusy=false;
+    portalCtx=r;                              /* probe 响应含完整快照(ready/expired/none) */
+    renderImpPortal();
+  }).catch(function(){portalBusy=false;
+    portalCtx={state:"error"};renderImpPortal();});
+}
 function openImportModal(){
   $("impText").value="";setImpNote("","");
   portalBusy=false;setPortalNote("","");    /* 重置上次的进行中状态 */
@@ -1193,6 +1205,8 @@ function openImportModal(){
   fetchJSON("/api/portal/session_status",{}).then(function(r){
     portalCtx=r;renderImpPortal();
     stopPortalPoll();startPortalPoll(5000);   /* 模态开着时慢轮询保状态新鲜 */
+    if(r.state!=="ready"||(nowSec()-(r.synced_at||0))>1800)autoProbe();
+    /* 非就绪,或缓存 ready 但数据陈旧(cookie 可能已过期):先探测验证 */
   }).catch(function(){portalCtx={state:"error"};renderImpPortal();});
 }
 $("impBtn").addEventListener("click",openImportModal);

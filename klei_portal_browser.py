@@ -19,6 +19,7 @@
 """
 import os
 import subprocess
+import time
 import winreg
 
 DATA_URL = "https://accounts.klei.com/account/transactions/data.json"
@@ -97,26 +98,33 @@ class PortalBrowser:
     def _flags(self, template_flags):
         return [f.replace("{PROF}", self.profile_dir) for f in template_flags]
 
-    def fetch_dump(self, url, timeout_s=_FETCH_TIMEOUT_S):
-        """headless 抓取页面 DOM(子进程,stdout);空输出 → PortalKernelError。"""
+    def fetch_dump(self, url, timeout_s=_FETCH_TIMEOUT_S, retries=1):
+        """headless 抓取页面 DOM(子进程,stdout)。
+        空输出(被既有 Edge 实例委托/浏览器自更新瞬断)自动重试一次;
+        仍空 → PortalKernelError(kernel_error)。"""
         if not self.exe:
             raise PortalKernelError("bad_kernel", "未找到可用的浏览器内核(Edge/Chrome)")
         cmd = [self.exe] + self._flags(FLAGS_DUMP) + [url]
-        try:
-            cp = subprocess.run(cmd, capture_output=True, timeout=timeout_s)
-        except subprocess.TimeoutExpired:
-            raise PortalKernelError(
-                "portal_fetch_failed",
-                "浏览器抓取超时(%ds)。若本机 Edge/Chrome 正开着,请先全部关闭再试"
-                % int(timeout_s))
-        out = (cp.stdout or b"").decode("utf-8", "replace")
-        if not out.strip():
-            # rc=0 但空输出 = 委托给既有浏览器进程失败(实测坑),或页面异常
-            raise PortalKernelError(
+        last_err = None
+        for attempt in range(retries + 1):
+            try:
+                cp = subprocess.run(cmd, capture_output=True, timeout=timeout_s)
+            except subprocess.TimeoutExpired:
+                last_err = PortalKernelError(
+                    "portal_fetch_failed",
+                    "浏览器抓取超时(%ds)。若本机 Edge/Chrome 正开着,请先全部关闭再试"
+                    % int(timeout_s))
+                continue
+            out = (cp.stdout or b"").decode("utf-8", "replace")
+            if out.strip():
+                return out
+            last_err = PortalKernelError(
                 "kernel_error",
                 "浏览器无输出——本机 Edge/Chrome 正开着会导致委托失败,"
                 "请关闭所有 Edge/Chrome 窗口后重试(或改用高级手动导入)")
-        return out
+            if attempt < retries:
+                time.sleep(2)          # 瞬断重试
+        raise last_err
 
     def fetch_info_html(self, timeout_s=_FETCH_TIMEOUT_S):
         """抓门户账号信息页 HTML(挖 KU_ userid 用)。"""
