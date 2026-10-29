@@ -237,6 +237,12 @@ label{color:var(--text-2);font-size:13px}
 .imp-danger-row{display:flex;align-items:center;gap:10px;margin-top:8px;
   padding-top:8px;border-top:1px dashed var(--line)}
 .imp-danger-row .btn.armed{background:var(--err-fg);color:#fff;border-color:var(--err-fg)}
+/* busy 转圈:一键导入等待 20~40 秒,必须让用户看到"活着" */
+.spin{display:inline-block;width:16px;height:16px;border-radius:50%;flex:none;
+  border:3px solid var(--muted-bg);border-top-color:var(--accent-fg);
+  animation:spin1 0.9s linear infinite}
+@keyframes spin1{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
 #askBanner{flex-basis:100%;order:10;display:flex;align-items:center;gap:8px;
   background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);
   border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;
@@ -491,7 +497,8 @@ body,.card,th,td,.acct,.btn,.badge,.micro,.bigbar{transition:background-color .3
 
     <!-- v6.0 一键导入区 -->
     <div id="portalBox">
-      <div class="imp-acct-row"><span class="dot idle" id="portalDot"></span>
+      <div class="imp-acct-row"><span class="spin" id="portalSpin" hidden></span>
+        <span class="dot idle" id="portalDot" hidden></span>
         <span id="portalStateTxt"></span>
         <span style="flex:1"></span>
         <span class="muted" style="font-size:12px" id="portalSynced"></span></div>
@@ -619,7 +626,7 @@ zh:{
   imp_open_login_win:"打开登录窗口", imp_probe:"我已登录,检测", imp_cancel:"取消",
   imp_advanced:"高级手动导入(粘贴 data.json)",
   imp_login_hint:"在弹出的浏览器窗口里完成 Steam 登录,然后关闭该窗口,回到这里点「我已登录,检测」。密码不会经过本面板。",
-  imp_onekey:"一键导入", imp_onekey_busy:"正在拉取门户数据并导入…",
+  imp_onekey:"一键导入", imp_onekey_busy:"正在拉取门户数据并导入…(约 20~40 秒)",
   imp_err_portal_login:"门户会话已失效,请重新登录",
   imp_err_portal_fetch:"拉取门户数据失败,请检查网络后重试",
   imp_err_portal_kernel:"浏览器内核不可用(需要 Edge 或 Chrome)",
@@ -714,7 +721,7 @@ en:{
   imp_open_login_win:"Open login window", imp_probe:"I've signed in, probe", imp_cancel:"Cancel",
   imp_advanced:"Advanced manual import (paste data.json)",
   imp_login_hint:"Sign in via Steam in the popped-up browser window, close it, then click \"I've signed in, probe\". Your password never passes through this panel.",
-  imp_onekey:"One-click import", imp_onekey_busy:"Fetching portal data…",
+  imp_onekey:"One-click import", imp_onekey_busy:"Fetching portal data… (~20-40s)",
   imp_err_portal_login:"Portal session invalid, sign in again",
   imp_err_portal_fetch:"Failed to fetch portal data — check your network and retry",
   imp_err_portal_kernel:"Browser kernel unavailable (Edge or Chrome required)",
@@ -1142,9 +1149,25 @@ function renderPortalRef(p){
   el.onclick=openImportModal;
 }
 function setPortalNote(kind,txt){var n=$("portalNote");n.className="imp-note "+kind;n.textContent=txt;}
+var busySince=0,busyTick=null,busyText="";
+function setPortalBusy(text){
+  portalBusy=true;busyText=text;portalCtx._busy=text;busySince=Date.now();
+  renderImpPortal();
+  if(busyTick)clearInterval(busyTick);
+  busyTick=setInterval(function(){          /* 秒数实时跳动:用户知道没卡死 */
+    var el=$("portalStateTxt");
+    if(el)el.textContent=busyText+" · 已 "+((Date.now()-busySince)/1000|0)+" 秒";
+  },1000);
+}
+function clearPortalBusy(){
+  portalBusy=false;
+  if(busyTick){clearInterval(busyTick);busyTick=null;}
+}
 function renderImpPortal(){
   var p=portalCtx||{},st=portalBusy?"busy":(p.state||"none");
-  $("portalDot").className="dot "+(st==="busy"?"run":portalDotCls(p.state||"none"));
+  $("portalSpin").hidden=!portalBusy;
+  $("portalDot").hidden=portalBusy;
+  $("portalDot").className="dot "+portalDotCls(p.state||"none");
   /* 状态一行字=当前步骤指引,不让用户猜 */
   $("portalStateTxt").textContent=st==="busy"?(p._busy||t("imp_probe_busy")):
     st==="awaiting_login"?t("portal_state_wait"):
@@ -1185,13 +1208,12 @@ function startPortalPoll(ms){
 function autoProbe(){
   /* 打开向导时自动探测:会话仍有效就直接就绪,不弹登录窗打扰 */
   if(portalBusy)return;
-  portalBusy=true;portalCtx._busy=t("imp_probe_busy");
-  renderImpPortal();
+  setPortalBusy(t("imp_probe_busy"));
   fetchJSON("/api/portal/probe",{}).then(function(r){
-    portalBusy=false;
+    clearPortalBusy();
     portalCtx=r;                              /* probe 响应含完整快照(ready/expired/none) */
     renderImpPortal();
-  }).catch(function(){portalBusy=false;
+  }).catch(function(){clearPortalBusy();
     portalCtx={state:"error"};renderImpPortal();});
 }
 function openImportModal(){
@@ -1217,15 +1239,13 @@ $("impOpenLogin").addEventListener("click",function(){
   }).catch(function(){setPortalNote("err",t("srv_down"))});
 });
 $("impProbe").addEventListener("click",function(){
-  var b=$("impProbe");
-  portalBusy=true;portalCtx._busy=t("imp_probe_busy");
-  renderImpPortal();                          // busy 态:全部按钮隐藏,只显示进行中提示
+  setPortalBusy(t("imp_probe_busy"));         // busy 态:全部按钮隐藏,转圈+秒数
   fetchJSON("/api/portal/probe",{}).then(function(r){
-    portalBusy=false;
+    clearPortalBusy();
     if(!r.ok)setPortalNote("err",t("portal_login_probe_fail"));
     else{toast(t("portal_connected"));setPortalNote("","");refreshStatus();}
     portalCtx=r;renderImpPortal();
-  }).catch(function(){portalBusy=false;renderImpPortal();
+  }).catch(function(){clearPortalBusy();renderImpPortal();
     setPortalNote("err",t("srv_down"))});
 });
 $("impCancelLogin").addEventListener("click",function(){
@@ -1240,10 +1260,9 @@ $("impOnekey").addEventListener("click",function(){
   if(!uid)return setPortalNote("err",t("imp_err_acct"));
   if(p.userid&&p.matched&&p.userid!==uid)     /* 会话已知且在面板内:防导错库 */
     return setPortalNote("err",t("portal_unmatched"));
-  portalBusy=true;portalCtx._busy=t("imp_onekey_busy");
-  renderImpPortal();                          // busy 态:全部按钮隐藏,只显示进行中提示
+  setPortalBusy(t("imp_onekey_busy"));
   fetchJSON("/api/portal/onekey_import",{userid:uid}).then(function(r){
-    portalBusy=false;
+    clearPortalBusy();
     if(r&&r.ok){
       $("impMask").hidden=true;stopPortalPoll();
       toast(t("imp_done").replace("%m",r.gifts_backfilled).replace("%d",r.gifts_deduped)
@@ -1257,7 +1276,7 @@ $("impOnekey").addEventListener("click",function(){
       else setPortalNote("err",t((r&&PORTAL_ERR_MAP[r.code])||"imp_err_server"));
       renderImpPortal();
     }
-  }).catch(function(){portalBusy=false;renderImpPortal();
+  }).catch(function(){clearPortalBusy();renderImpPortal();
     setPortalNote("err",t("srv_down"))});
 });
 $("impClose").addEventListener("click",function(){
