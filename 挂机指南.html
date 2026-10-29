@@ -288,6 +288,18 @@ SteamInternal_SetMinidumpSteamID:  Caching Steam ID: 7656119xxxxxxxxxx [API load
   <div class="cmd"><button class="copybtn">复制</button><pre>python klei_heartbeat_auto.py --once --no-logfile</pre></div>
   <p>起始位置填本项目文件夹。注意:计划任务的 --once 模式每次要用有效 token,断链时会自动
   重登(需 Steam 在线)。</p></details>
+  <details><summary>一键导入门户历史礼物(补齐接入前的记录)</summary>
+  <p>控制面板「礼物记录 → 导入历史」,向导会自动探测你之前登录过的会话:</p>
+  <ol style="margin:6px 0;padding-left:22px;font-size:13px;line-height:1.8">
+    <li>已连接 → 直接点<b>一键导入</b>(约 20~40 秒,有转圈和秒数提示)</li>
+    <li>未连接/已过期 → 点<b>打开登录窗口</b>,在弹出的浏览器里登录 Steam(密码不经过面板),
+        关窗后点<b>我已登录,检测</b> → 一键导入</li>
+  </ol>
+  <p>导入内容 = Klei 门户<b>过去一年</b>的官方逐笔记录(每日礼/周礼带周号),按官方时间戳回填,
+  重复导入零副作用;周礼 X/8 与每日礼状态随即与官方对齐。</p>
+  <p><span class="badge orange">清空</span> 礼物记录卡右上角「清空记录」:两击确认,
+  自动备份到账号目录(gifts_backup_*.json),清空后一键导入即可恢复。</p>
+  </details>
   <details><summary>AI/脚本自动化管理(本地 API,推荐)</summary>
   <p>控制面板开着时,本机 <code>http://127.0.0.1:8377</code> 提供机器可读接口(仅本机可访问)。
   定时任务/AI 只需一步:</p>

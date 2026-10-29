@@ -131,9 +131,12 @@ never falsely clears a muted suspect state.
 
 ## 🧾 Changelog (abridged)
 
-- **v6.0** — one-click reconciliation: dedicated browser session (system Edge/Chrome profile,
-  password never touches the panel), auto fetch+import of portal history; official week line
-  (week number / claimed / countdown) on the weekly card.
+- **v6.0 (+8 refinement commits, same day)** — one-click reconciliation: dedicated browser session
+  (system Edge/Chrome profile, password never touches the panel), auto fetch+import of portal
+  history; official week line (week number / claimed / countdown) on the weekly card.
+  Same-night refinements: auto-probe on wizard open (valid session → skip login entirely);
+  spinner + live elapsed seconds during import (~20-40s); "Clear local ledger" button
+  (double-click confirm + auto JSON backup); panel page no-cache + visible build tag.
 - **v5.9** — portal history import: paste Klei portal `data.json`, one year of official daily/weekly gift records back-filled per account (idempotent, Item-ID dedup); gift-table filter chips + load-older.
 - **v5.8** — system-tray app (no console window; pure-ctypes tray icon, right-click menu, single-instance guard, windowed log to `_run.log`); daily-gift status per account (claimed/probing/due, local ledger as single source of truth — Klei has **no** gift-history endpoint, verified by exe string mining); **local automation API**: `GET /api/automation` decision document with a pending-actions checklist, `/api/gifts` query params (since/source/account/limit/offset); weekly card relabeled "rolling 7d"; +51 tests.
 - **v1.2** — renamed to Chester; visual polish pass.
