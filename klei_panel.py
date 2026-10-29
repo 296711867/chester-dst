@@ -2227,6 +2227,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        # 面板页面禁止启发式缓存:版本更新后浏览器必须拿新 HTML
+        # (否则旧 JS 会和新后端错配,用户看到"按钮全显示/文案错位"的幽灵界面)
+        self.send_header("Cache-Control", "no-cache, must-revalidate")
         self.end_headers()
         self.wfile.write(body)
 
