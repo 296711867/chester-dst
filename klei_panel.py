@@ -374,6 +374,7 @@ def label_item(item_type):
 
 
 SOURCE_ZH = {"tick": "周礼", "daily": "每日礼", "box": "神秘箱"}
+PRODUCT_VERSION = "6.0"   # 产品版本(托盘 tooltip/前端显示);API schema 版走 api_version 字段
 
 # ---- 门户历史导入(v5.9):Klei 网页门户 /account/transactions/data.json ----
 PORTAL_TEXT_MAX_BYTES = 512 * 1024   # 一年 data.json 实测 ~50KB,留 10 倍余量
@@ -396,8 +397,9 @@ class PortalParseError(ValueError):
 
 
 def _portal_norm_items(raw):
-    """ItemGains/ItemLosses → [{id,type,image}];非法条目收敛为 id=0。
-    ID 超过 SQLite INTEGER 上限(2^63-1)也收敛为 0(落窗口去重,不炸入库)。"""
+    """ItemGains → [{id,type,image}](ItemLosses v1 不导,仅解析同构备用);
+    非法条目收敛为 id=0;ID 超过 SQLite INTEGER 上限(2^63-1)也收敛为 0
+    (落窗口去重,不炸入库)。"""
     out = []
     for it in raw or []:
         if not isinstance(it, dict):
@@ -833,6 +835,12 @@ def gift_enrich(rows):
     return out
 
 
+def valid_ku_userid(uid):
+    """路由入参的 KU_ 账号 ID 校验(KU_ 前缀+白名单字符+长度)——阻断路径穿越。"""
+    return (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
+            and all(c.isalnum() or c in "_-" for c in uid[3:]))
+
+
 def merge_gifts(panel, limit, since=0.0, sources=None, account=None):
     """跨账号聚合礼物(带归属账号别名);过滤下推 SQL,按时间倒序截断。
     account 只认 userid 精确匹配(别名可重复可改,机器接口不碰)。"""
@@ -952,11 +960,6 @@ PORTAL_STALE_S = 1800            # 前端"数据滞后"提示阈值
 PORTAL_CACHE_PATH = os.path.join(HERE, "credentials", "portal", "drops_cache.json")
 PORTAL_PROFILE_DIR = os.path.join(HERE, "credentials", "portal", "profile")
 
-PORTAL_JSON_STATE_KEYS = ("state", "userid", "matched", "account_alias",
-                          "available", "week", "week_end_ms", "claimed",
-                          "max", "synced_at", "error_code")
-
-
 class PortalSession:
     """门户会话:持久 profile(浏览器 cookie)+ drops 缓存,跨重启。
     state ∈ none(无 profile/未探测) | awaiting_login(登录窗口开着)
@@ -1029,7 +1032,7 @@ class PortalSession:
             dump = b.fetch_dump(PB_DROPS_URL)
         except Exception as e:
             code = getattr(e, "code", "portal_fetch_failed")
-            self.state = "error" if code in ("kernel_error", "bad_kernel") else "error"
+            self.state = "error"          # 网络/内核失败;过期走另一分支
             return False, code
         j = self._extract_json(dump)
         if not isinstance(j, dict) or j.get("ok") is not True \
@@ -1355,12 +1358,24 @@ class Worker(threading.Thread):
             loaded = AccountStore.load_session_file(rt.store.session_path)
         if loaded:
             tok, uid, _j = loaded
+            # 门禁(与下方重登路径同款):目录里的 session 若装了别人家的 token
+            # (拷错目录/错位恢复),续期成功也绝不采纳,防跨账号污染
+            if uid not in ("?", None) and uid != rt.userid:
+                raise AccountMismatch(
+                    "会话文件 UserID=%s 与账号目录 %s 不符"
+                    % (mask_userid(uid), mask_userid(rt.userid)))
             st, raw = K.refresh_token(tok)
             try:
                 resp = json.loads(raw)
             except json.JSONDecodeError:
                 resp = None
             if resp and not resp.get("Error") and resp.get("Token"):
+                # 续期响应含 UserID:同样校验(TokenPurpose 响应带该字段,docs §1.2)
+                r_uid = resp.get("UserID")
+                if r_uid and r_uid != rt.userid:
+                    raise AccountMismatch(
+                        "续期返回 UserID=%s 与账号 %s 不符"
+                        % (mask_userid(r_uid), mask_userid(rt.userid)))
                 self._adopt(rt, resp, "refresh")
                 return
         # L1:重登一次(Steam 当前登录的可能不是这个账号 → 门禁)
@@ -1831,11 +1846,12 @@ class Panel:
             s = dict(self.state)
             s["settings"] = dict(self._settings)   # Lock 不可重入,一次取齐
         s["weekly_cap"] = WEEKLY_CAP
-        s["current_userid_masked"] = mask_userid(s.get("current_userid"))
+        # 安全声明(模块头):完整 userid 只经 /api/accounts 出门;/api/status 仅脱敏版
+        s["current_userid_masked"] = mask_userid(s.pop("current_userid", None))
         s["accounts_enabled"] = sum(1 for it in self.registry_snapshot() if it["enabled"])
         s["uptime_s"] = int(time.time() - s["started_at"]) if s["started_at"] else 0
         s["running"] = bool(self.worker and self.worker.is_alive())
-        s["version"] = "1.1"
+        s["version"] = PRODUCT_VERSION
         return s
 
     def current_store(self):
@@ -1966,9 +1982,21 @@ class Handler(BaseHTTPRequestHandler):
                                     **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
         return self._send_json({"error": "not found"}, 404)
 
+    def _origin_ok(self):
+        """本地 CSRF 防线:跨站表单 POST 的 Host 也是 127.0.0.1,_host_ok 拦不住;
+        浏览器带 Origin 头时必须是本地面板地址(同源 fetch 不带 Origin,也放行)。"""
+        origin = (self.headers.get("Origin") or "").lower()
+        if not origin:
+            return True
+        return origin in ("http://127.0.0.1:%d" % PORT,
+                          "http://localhost:%d" % PORT)
+
     def do_POST(self):
         if not self._host_ok():
             return self._send_json({"error": "bad host"}, 400)
+        if not self._origin_ok():
+            # 恶意网页可构造跨站表单静默触发 /api/quit /api/stop——只放行本源
+            return self._send_json({"error": "bad origin"}, 403)
         path = self.path.split("?", 1)[0]
         if path == "/api/settings":
             body = self._read_body_json()
@@ -2002,8 +2030,7 @@ class Handler(BaseHTTPRequestHandler):
             # 清空本地礼物记录(测试/重置用):自动备份到账号目录 JSON,再删表
             body = self._read_body_json()
             uid = (body or {}).get("userid") or ""
-            uid_ok = (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
-                      and all(c.isalnum() or c in "_-" for c in uid[3:]))
+            uid_ok = valid_ku_userid(uid)
             if not uid_ok or not any(it["userid"] == uid
                                      for it in PANEL.registry_snapshot()):
                 return self._send_json({"ok": False, "code": "bad_account",
@@ -2039,8 +2066,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"ok": False, "code": "bad_json",
                                         "detail": "请求体不是 JSON"}, 400)
             uid = body.get("userid") or ""
-            uid_ok = (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
-                      and all(c.isalnum() or c in "_-" for c in uid[3:]))
+            uid_ok = valid_ku_userid(uid)
             if not uid_ok:
                 return self._send_json({"ok": False, "code": "bad_account",
                                         "detail": "账号 ID 非法"}, 400)
@@ -2079,7 +2105,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json({"ok": True,
                                     **PORTAL.snapshot(registry=PANEL.registry_snapshot())})
         if path == "/api/portal/probe":
-            # 登录态检测:headless 拉 drops.json(用户显式触发,同步 45s 内);
+            # 登录态检测:headless 拉 drops.json(用户显式触发;含 1 次瞬断重试,最坏 ~90s);
             # 成功则顺带从账号信息页挖 KU_ userid(供前端匹配提示)
             ok, code = PORTAL.probe()
             if not ok:
@@ -2116,8 +2142,7 @@ class Handler(BaseHTTPRequestHandler):
             # 一键对账:门户会话拉 data.json+drops.json → 解析 → 回填目标账号
             body = self._read_body_json()
             uid = (body or {}).get("userid") or ""
-            uid_ok = (isinstance(uid, str) and uid.startswith("KU_") and len(uid) <= 35
-                      and all(c.isalnum() or c in "_-" for c in uid[3:]))
+            uid_ok = valid_ku_userid(uid)
             if not uid_ok or not any(it["userid"] == uid
                                      for it in PANEL.registry_snapshot()):
                 return self._send_json({"ok": False, "code": "bad_account",
@@ -2125,10 +2150,9 @@ class Handler(BaseHTTPRequestHandler):
             if PORTAL.state == "awaiting_login":
                 return self._send_json({"ok": False, "code": "login_window_open",
                                         "detail": "请先完成登录并关闭登录窗口"}, 409)
-            # 会话已知所属账号且在注册表内:强制一致,防把 A 账号历史导进 B 账号库
-            if PORTAL.userid and any(it["userid"] == PORTAL.userid
-                                     for it in PANEL.registry_snapshot()) \
-                    and uid != PORTAL.userid:
+            # 会话已知所属账号即强制一致,防把 A 账号历史导进 B 账号库:
+            # 门户登录的是未注册账号 X 时也拦截(若要求 X 在注册表内,守卫可被绕过)
+            if PORTAL.userid and uid != PORTAL.userid:
                 return self._send_json(
                     {"ok": False, "code": "account_mismatch",
                      "detail": "门户登录的是 %s,不能导入到 %s(防止导错账号库)"

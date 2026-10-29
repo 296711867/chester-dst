@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chester · 饥荒礼物箱</title>
 <link rel="icon" type="image/png" href="/assets/icons/gift.png">
-<script>try{var s=localStorage.getItem("klei_panel_skin");if(["parchment","dark","winter","forge","lunar","forest"].indexOf(s)>=0)document.documentElement.setAttribute("data-theme",s)}catch(e){}</script>
+<script>try{var s=localStorage.getItem("klei_panel_skin");if(["parchment","dark","winter","forge","lunar","forest","orange"].indexOf(s)>=0)document.documentElement.setAttribute("data-theme",s)}catch(e){}</script>
 <style>
 @font-face{font-family:"Amarante";
   src:url("/assets/fonts/amarante.woff2") format("woff2");
@@ -609,9 +609,10 @@ zh:{
   imp_err_too_large:"内容超过 512KB——请确认复制的是 data.json 页面",
   flt_all:"全部", gift_more:"加载更早记录", gifts_sub_filter:"已筛选:%s",
   clear_gifts:"清空本地礼物记录",
+  clear_gifts_hint:"测试用:清空后可用「一键导入」按官方记录重新回填(自动备份)",
   clear_gifts_confirm:"再点一次确认清空(不可恢复,自动备份)",
   clear_gifts_done:"已清空本地记录 %d 条(备份:%s)",
-  days_h:"天", min_h:"分",
+  days_h:"天", min_h:"分", busy_elapsed_s:"已 %d 秒",
   portal_acct_tag:"官方·%a", portal_week_n:"第 %w 周",
   portal_week_ends:"%d 结束", portal_week_left:"剩 %t",
   portal_week_tip:"Klei 官方周进度(门户账号级)。上方大进度条为本地滚动 7 天实时口径,两者在周界日可差 1~2 件,均正常",
@@ -704,9 +705,10 @@ en:{
   imp_err_too_large:"Over 512KB — make sure you copied the data.json page",
   flt_all:"All", gift_more:"Load older", gifts_sub_filter:"Filtered: %s",
   clear_gifts:"Clear local gift ledger",
+  clear_gifts_hint:"For testing: clear, then one-click import re-backfills from official records (auto backup)",
   clear_gifts_confirm:"Click again to confirm (irreversible, auto-backed-up)",
   clear_gifts_done:"Cleared %d local records (backup: %s)",
-  days_h:"d", min_h:"m",
+  days_h:"d", min_h:"m", busy_elapsed_s:"%d s elapsed",
   portal_acct_tag:"Official · %a", portal_week_n:"Week %w",
   portal_week_ends:"ends %d", portal_week_left:"%t left",
   portal_week_tip:"Official Klei week (portal, per-account). The big bar above is the local rolling-7d caliber; ±1-2 items around week boundaries is normal",
@@ -1152,12 +1154,14 @@ function renderPortalRef(p){
 function setPortalNote(kind,txt){var n=$("portalNote");n.className="imp-note "+kind;n.textContent=txt;}
 var busySince=0,busyTick=null,busyText="";
 function setPortalBusy(text){
-  portalBusy=true;busyText=text;portalCtx._busy=text;busySince=Date.now();
+  portalBusy=true;busyText=text;
+  if(!portalCtx)portalCtx={};portalCtx._busy=text;busySince=Date.now();
   renderImpPortal();
   if(busyTick)clearInterval(busyTick);
   busyTick=setInterval(function(){          /* 秒数实时跳动:用户知道没卡死 */
     var el=$("portalStateTxt");
-    if(el)el.textContent=busyText+" · 已 "+((Date.now()-busySince)/1000|0)+" 秒";
+    if(el)el.textContent=busyText+" · "+t("busy_elapsed_s").replace("%d",
+      (Date.now()-busySince)/1000|0);
   },1000);
 }
 function clearPortalBusy(){
@@ -1287,21 +1291,27 @@ $("impClose").addEventListener("click",function(){
 var clearArmed=false,clearTimer=null;
 function clearArmFlow(b){
   if(!b.dataset.orig)b.dataset.orig=b.textContent;   /* 各按钮保留自己的原始文案 */
+  if(clearArmedBy&&clearArmedBy!==b){                /* 跨按钮:A 武装中点 B,B 只算自己的第一击 */
+    clearArmedBy.classList.remove("armed");
+    clearArmedBy.textContent=clearArmedBy.dataset.orig;
+    clearArmedBy=null;
+    if(clearTimer)clearTimeout(clearTimer);
+  }
   var accs=lastAccountsData||[];
   var uid=$("impAcct").value||(accs.length===1?(accs[0]||{}).userid:"");
   if(!uid)return toast(t("imp_err_acct"));
-  if(!clearArmed){                        /* 第一击:进入武装态 */
-    clearArmed=true;
+  if(clearArmedBy!==b){                   /* 第一击(或跨按钮重来):进入武装态 */
+    clearArmedBy=b;
     b.classList.add("armed");
     b.textContent=t("clear_gifts_confirm");
     if(clearTimer)clearTimeout(clearTimer);
     clearTimer=setTimeout(function(){      /* 5 秒不点第二击自动解除 */
-      clearArmed=false;b.classList.remove("armed");
+      clearArmedBy=null;b.classList.remove("armed");
       b.textContent=b.dataset.orig;
     },5000);
     return;
   }
-  clearArmed=false;clearTimer&&clearTimeout(clearTimer);
+  clearArmedBy=null;clearTimer&&clearTimeout(clearTimer);
   b.classList.remove("armed");b.disabled=true;
   fetchJSON("/api/gifts/clear",{userid:uid}).then(function(r){
     b.disabled=false;b.textContent=b.dataset.orig;

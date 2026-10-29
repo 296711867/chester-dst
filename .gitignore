@@ -28,3 +28,4 @@ dist/
 build/
 *.exe
 _exe*.log
+_run.log

@@ -124,7 +124,9 @@ class TPortalSession(Base):
         s.userid = "KU_TEST"
         s.probe()
         snap = s.snapshot(registry=[{"userid": "KU_TEST", "alias": "测试"}])
-        for k in P.PORTAL_JSON_STATE_KEYS:
+        for k in ("state", "userid", "matched", "account_alias", "available",
+                  "week", "week_end_ms", "claimed", "max", "synced_at",
+                  "error_code"):
             self.assertIn(k, snap)
         self.assertTrue(snap["matched"])
         self.assertEqual(snap["account_alias"], "测试")

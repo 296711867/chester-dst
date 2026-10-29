@@ -152,7 +152,7 @@ POST /clientitems/DST/DailyGift
 {"Error":false,"GiftReceived":true,"ItemType":"TOPHAT_CHEF","ItemID":61701429816}  // 今日有礼
 {"Error":false,"GiftReceived":false}                                               // 今日已领/无
 ```
-按自然日幂等(每天一次,与周礼是两条独立线)。
+自上次领取起 **24h 滚动幂等**(2026-10-28 实测修订:本地 00:01 调用答 false、滚动点过后同日再调即 true——旧"自然日每天一次"结论作废;与周礼是两条独立线)。
 
 ### 2.6 OpenMysteryBox —— 开神秘箱 **[实测]**
 

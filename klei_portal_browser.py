@@ -34,9 +34,6 @@ PROFILE_HTML_FLAGS = ["--user-data-dir={PROF}", "--no-first-run",
 FLAGS_DUMP = ["--headless=new", "--disable-gpu", "--no-first-run",
               "--disable-extensions", "--disable-sync", "--no-default-browser-check",
               "--user-data-dir={PROF}", "--virtual-time-budget=20000", "--dump-dom"]
-FLAGS_HEADED = ["--user-data-dir={PROF}", "--no-first-run",
-                "--no-default-browser-check", "--disable-extensions",
-                "--window-size=1100,800"]
 _FETCH_TIMEOUT_S = 45.0
 
 
