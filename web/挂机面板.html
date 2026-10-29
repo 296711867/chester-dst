@@ -596,10 +596,11 @@ zh:{
   portal_week_ends:"%d 结束", portal_week_left:"剩 %t",
   portal_week_tip:"Klei 官方周进度(门户账号级)。上方大进度条为本地滚动 7 天实时口径,两者在周界日可差 1~2 件,均正常",
   portal_stale:"数据滞后", portal_synced_at:"同步于 %s",
-  portal_state_none:"未连接 Klei 门户", portal_state_wait:"等待你在登录窗口完成登录…",
-  portal_state_ready:"已连接 ✓", portal_state_expired:"门户登录已过期,请重新登录",
+  portal_state_none:"第一步:打开登录窗口并在其中登录",
+  portal_state_wait:"第二步:等待你在登录窗口完成登录…",
+  portal_state_ready:"已连接 ✓ 可以一键导入了", portal_state_expired:"门户登录已过期,请重新登录",
   portal_state_error:"门户连接出错",
-  portal_connected:"门户已连接 ✓",
+  portal_connected:"门户已连接 ✓", imp_probe_busy:"正在检测门户登录…(约 10 秒,期间请勿关闭本窗口)",
   portal_unmatched:"该 Klei 账号尚未添加到面板",
   portal_recon_more:"官方比本地多 %d 件(面板外领取),一键导入可补全",
   portal_login_probe_fail:"还没检测到登录——请在弹出的窗口里完成 Steam 登录后再点检测",
@@ -687,10 +688,11 @@ en:{
   portal_week_ends:"ends %d", portal_week_left:"%t left",
   portal_week_tip:"Official Klei week (portal, per-account). The big bar above is the local rolling-7d caliber; ±1-2 items around week boundaries is normal",
   portal_stale:"stale", portal_synced_at:"synced %s",
-  portal_state_none:"Klei portal not connected", portal_state_wait:"Waiting for you to sign in…",
-  portal_state_ready:"Connected ✓", portal_state_expired:"Portal session expired, sign in again",
+  portal_state_none:"Step 1: open the login window and sign in",
+  portal_state_wait:"Step 2: waiting for you to sign in…",
+  portal_state_ready:"Connected ✓ ready to import", portal_state_expired:"Portal session expired, sign in again",
   portal_state_error:"Portal error",
-  portal_connected:"Portal connected ✓",
+  portal_connected:"Portal connected ✓", imp_probe_busy:"Probing portal sign-in… (~10s, keep this window open)",
   portal_unmatched:"This Klei account is not in the panel yet",
   portal_recon_more:"Official shows %d more (claimed outside panel) — one-click import can backfill",
   portal_login_probe_fail:"No sign-in detected — finish Steam login in the opened window, then probe again",
@@ -1079,7 +1081,7 @@ $("impGo").addEventListener("click",function(){
 });
 
 /* ===== v6.0 门户一键对账 ===== */
-var portalCtx=null,portalTimer=null;
+var portalCtx=null,portalTimer=null,portalBusy=false;
 var PORTAL_ERR_MAP={portal_not_logged_in:"imp_err_portal_login",
                     portal_fetch_failed:"imp_err_portal_fetch",
                     kernel_error:"imp_err_portal_kernel",
@@ -1126,20 +1128,23 @@ function renderPortalRef(p){
 }
 function setPortalNote(kind,txt){var n=$("portalNote");n.className="imp-note "+kind;n.textContent=txt;}
 function renderImpPortal(){
-  var p=portalCtx||{},st=p.state||"none";
-  $("portalDot").className="dot "+portalDotCls(st);
-  $("portalStateTxt").textContent=st==="awaiting_login"?t("portal_state_wait"):
+  var p=portalCtx||{},st=portalBusy?"busy":(p.state||"none");
+  $("portalDot").className="dot "+(st==="busy"?"run":portalDotCls(p.state||"none"));
+  /* 状态一行字=当前步骤指引,不让用户猜 */
+  $("portalStateTxt").textContent=st==="busy"?(p._busy||t("imp_probe_busy")):
+    st==="awaiting_login"?t("portal_state_wait"):
     st==="ready"?t("portal_state_ready"):st==="expired"?t("portal_state_expired"):
     st==="error"?t("portal_state_error"):t("portal_state_none");
   $("portalHint").hidden=(st!=="awaiting_login");
-  $("portalSynced").textContent=(st==="ready"&&p.synced_at)?
+  $("portalSynced").textContent=(p.state==="ready"&&p.synced_at)?
     t("portal_synced_at").replace("%s",fmtTs(p.synced_at)):"";
-  $("impOpenLogin").hidden=!(st==="none"||st==="expired"||st==="error");
-  $("impCancelLogin").hidden=(st!=="awaiting_login");
-  $("impProbe").hidden=(st!=="awaiting_login");
-  $("impOnekey").hidden=(st!=="ready");
+  /* busy 时全部按钮消失,只有一个动作在走 */
+  $("impOpenLogin").hidden=portalBusy||!(st==="none"||st==="expired"||st==="error");
+  $("impCancelLogin").hidden=portalBusy||(st!=="awaiting_login");
+  $("impProbe").hidden=portalBusy||(st!=="awaiting_login");
+  $("impOnekey").hidden=portalBusy||(st!=="ready");
   var wl=$("portalWeekLine");
-  if(st==="ready"&&p.week){
+  if(p.state==="ready"&&p.week){
     var we=p.week_end_ms;if(we>1e12)we=we/1000;
     wl.hidden=false;
     wl.innerHTML=esc(t("portal_week_n").replace("%w",p.week))+" · <b>"+
@@ -1154,6 +1159,7 @@ function stopPortalPoll(){if(portalTimer){clearInterval(portalTimer);portalTimer
 function startPortalPoll(ms){
   stopPortalPoll();
   portalTimer=setInterval(function(){
+    if(portalBusy)return;                 /* 操作进行中:轮询不覆盖界面状态 */
     fetchJSON("/api/portal/session_status").then(function(r){
       var was=(portalCtx||{}).state;
       portalCtx=r;
@@ -1163,6 +1169,7 @@ function startPortalPoll(ms){
   },ms);}
 function openImportModal(){
   $("impText").value="";setImpNote("","");
+  portalBusy=false;setPortalNote("","");    /* 重置上次的进行中状态 */
   var accs=lastAccountsData||[];
   var sel=$("impAcct");
   sel.innerHTML=accs.map(function(a){
@@ -1181,17 +1188,16 @@ $("impOpenLogin").addEventListener("click",function(){
   }).catch(function(){setPortalNote("err",t("srv_down"))});
 });
 $("impProbe").addEventListener("click",function(){
-  var b=$("impProbe");b.disabled=true;setPortalNote("",t("imp_onekey_busy"));
+  var b=$("impProbe");
+  portalBusy=true;portalCtx._busy=t("imp_probe_busy");
+  renderImpPortal();                          // busy 态:全部按钮隐藏,只显示进行中提示
   fetchJSON("/api/portal/probe",{}).then(function(r){
-    b.disabled=false;
+    portalBusy=false;
     if(!r.ok)setPortalNote("err",t("portal_login_probe_fail"));
-    else{toast(t("portal_connected"));refreshStatus();}
+    else{toast(t("portal_connected"));setPortalNote("","");refreshStatus();}
     portalCtx=r;renderImpPortal();
-    if(r.state==="ready"){          /* 就绪即带出账号匹配信息 */
-      fetchJSON("/api/portal/session_status").then(function(s){
-        portalCtx=s;renderImpPortal();}).catch(function(){});
-    }
-  }).catch(function(){b.disabled=false;setPortalNote("err",t("srv_down"))});
+  }).catch(function(){portalBusy=false;renderImpPortal();
+    setPortalNote("err",t("srv_down"))});
 });
 $("impCancelLogin").addEventListener("click",function(){
   fetchJSON("/api/portal/login_cancel",{}).then(function(r){
@@ -1205,9 +1211,10 @@ $("impOnekey").addEventListener("click",function(){
   if(!uid)return setPortalNote("err",t("imp_err_acct"));
   if(p.userid&&p.matched&&p.userid!==uid)     /* 会话已知且在面板内:防导错库 */
     return setPortalNote("err",t("portal_unmatched"));
-  var b=$("impOnekey");b.disabled=true;setPortalNote("",t("imp_onekey_busy"));
+  portalBusy=true;portalCtx._busy=t("imp_onekey_busy");
+  renderImpPortal();                          // busy 态:全部按钮隐藏,只显示进行中提示
   fetchJSON("/api/portal/onekey_import",{userid:uid}).then(function(r){
-    b.disabled=false;
+    portalBusy=false;
     if(r&&r.ok){
       $("impMask").hidden=true;stopPortalPoll();
       toast(t("imp_done").replace("%m",r.gifts_backfilled).replace("%d",r.gifts_deduped)
@@ -1221,7 +1228,8 @@ $("impOnekey").addEventListener("click",function(){
       else setPortalNote("err",t((r&&PORTAL_ERR_MAP[r.code])||"imp_err_server"));
       renderImpPortal();
     }
-  }).catch(function(){b.disabled=false;setPortalNote("err",t("srv_down"))});
+  }).catch(function(){portalBusy=false;renderImpPortal();
+    setPortalNote("err",t("srv_down"))});
 });
 $("impClose").addEventListener("click",function(){
   $("impMask").hidden=true;stopPortalPoll();
