@@ -841,6 +841,44 @@ def valid_ku_userid(uid):
             and all(c.isalnum() or c in "_-" for c in uid[3:]))
 
 
+def _full_login_in_child(desc, timeout=90):
+    """在一次性子进程里做 SteamAPI 取票登录,返回 full_login 同款四元组。
+
+    为什么:主进程只要加载并 Init 过 steam_api64.dll,Steam 客户端就会持续把本机
+    显示为"正在玩饥荒联机版"(实测:面板停止/SteamAPI_Shutdown 都不清,进程退出
+    才清)。挪到子进程后,显示只存在于子进程存活的约 10 秒内;主进程纯 HTTP,
+    与 Steam 状态彻底解耦——"停止挂机"后 Steam 自然回到"在线"。
+    frozen 下 spawn 自身(Chester.exe --steam-login-child),源码下 spawn python+本文件。
+    调用方须持 LOGIN_GATE(防并发子进程在同 profile 上互踩)。"""
+    import subprocess
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=".json", prefix="chester_login_")
+    os.close(fd)
+    try:
+        if getattr(sys, "frozen", False):
+            cmd = [sys.executable, "--steam-login-child", path,
+                   "--child-desc", desc or "klei_panel_child"]
+        else:
+            cmd = [sys.executable, os.path.join(HERE, "klei_panel.py"),
+                   "--steam-login-child", path,
+                   "--child-desc", desc or "klei_panel_child"]
+        try:
+            cp = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("子进程登录超时(%ds)" % timeout)
+        if cp.returncode != 0:
+            err = (cp.stderr or cp.stdout or b"").decode("utf-8", "replace")[-200:]
+            raise RuntimeError("子进程登录失败 rc=%s: %s" % (cp.returncode, err))
+        with open(path, encoding="utf-8") as f:
+            j = json.load(f)
+        return j["Token"], j["UserID"], j.get("resp") or {}, None
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 def merge_gifts(panel, limit, since=0.0, sources=None, account=None):
     """跨账号聚合礼物(带归属账号别名);过滤下推 SQL,按时间倒序截断。
     account 只认 userid 精确匹配(别名可重复可改,机器接口不碰)。"""
@@ -1383,8 +1421,8 @@ class Worker(threading.Thread):
             raise NeedsLogin("重登节流中")
         rt.last_relogin_ts = time.time()
         with LOGIN_GATE:
-            tok, uid, resp, _sid = HB.full_login(
-                None, self.panel.get_settings()["desc"])
+            tok, uid, resp, _sid = _full_login_in_child(
+                self.panel.get_settings()["desc"])
         if uid != rt.userid:
             raise AccountMismatch(
                 "期望 %s 实得 %s(Steam 当前登录的是别的账号)"
@@ -1736,7 +1774,7 @@ class Panel:
         """人肉环节:Steam 已切到目标账号 → 面板代为 LoginViaSteam 并收编。"""
         with LOGIN_GATE:
             try:
-                tok, uid, resp, _sid = HB.full_login(None, desc)
+                tok, uid, resp, _sid = _full_login_in_child(desc)
             except Exception as e:
                 return None, "登录失败: %s(Steam 客户端须已登录目标账号)" % e, 502
         if not uid or uid == "?":
@@ -2584,7 +2622,22 @@ def main():
     ap.add_argument("--port", type=int, default=8377)
     ap.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
     ap.add_argument("--no-tray", action="store_true", help="不启用托盘图标(调试)")
+    ap.add_argument("--steam-login-child", metavar="OUT_JSON", default=None,
+                    help="内部:子进程模式——只做 Steam 取票登录,写 JSON 后退出")
+    ap.add_argument("--child-desc", default="klei_panel_child",
+                    help="内部:子进程登录的 FriendlyHostDescriptor")
     args = ap.parse_args()
+
+    if args.steam_login_child:
+        # 子进程模式:主进程从此不再加载 steam_api64.dll → Steam 好友列表不会
+        # 把本机持续显示为"游戏中"(子进程退出即释放;纯 HTTP 心跳与 Steam 无关)。
+        # 必须在单实例互斥/托盘之前 return。
+        _ensure_stdio()
+        tok, uid, resp, _sid = HB.full_login(None, args.child_desc)
+        with open(args.steam_login_child, "w", encoding="utf-8") as f:
+            json.dump({"Token": tok, "UserID": uid, "resp": resp}, f,
+                      ensure_ascii=False)
+        return
     PORT = args.port
 
     log_path = _ensure_stdio()             # windowed 模式 print 前必须先兜底
