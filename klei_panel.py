@@ -7,7 +7,7 @@ klei_panel.py — Chester·饥荒礼物箱 本地控制面板(v5):多账号勾�
 
 架构(全部标准库,零第三方依赖):
   * http.server(ThreadingHTTPServer)只绑 127.0.0.1,路由白名单,无 CORS;
-  * 心跳 worker 是唯一会碰 ctypes/SteamAPI 的线程;HTTP 侧的登录
+  * 心跳 SteamAPI 只在一次性登录子进程里出现(主进程纯 HTTP);HTTP 侧的登录
     (添加账号)经 LOGIN_GATE 与之串行(get_ticket 内 chdir/appid 是进程级操作);
   * 多账号:panel_accounts.json 注册表(启动时自动收编 credentials/accounts/ 旧目录),
     worker 每轮顺序处理所有勾选账号(账号间错峰 3s,interval=每轮间隔);
@@ -139,7 +139,7 @@ def _today0():
 # ---------------------------------------------------------------- 账号注册表
 ACCOUNTS_PATH = os.path.join(HERE, "panel_accounts.json")   # 面板配置,gitignore 排除
 ACCOUNTS_LOCK = threading.RLock()   # 可重入:registry_update 持锁调用 save_accounts
-LOGIN_GATE = threading.Lock()   # full_login 串行门:get_ticket 内 chdir+appid.txt 是进程级操作
+LOGIN_GATE = threading.Lock()   # full_login 串行门:取票的 chdir+appid.txt 在子进程内,随进程退出自清
 RELOGIN_THROTTLE = 300          # needs_login 账号重登节流(秒)
 
 
@@ -856,21 +856,26 @@ def _full_login_in_child(desc, timeout=90):
     os.close(fd)
     try:
         if getattr(sys, "frozen", False):
-            cmd = [sys.executable, "--steam-login-child", path,
-                   "--child-desc", desc or "klei_panel_child"]
+            cmd = [sys.executable, "--steam-login-child=%s" % path,
+                   "--child-desc=%s" % (desc or "klei_panel_child")]
         else:
             cmd = [sys.executable, os.path.join(HERE, "klei_panel.py"),
-                   "--steam-login-child", path,
-                   "--child-desc", desc or "klei_panel_child"]
+                   "--steam-login-child=%s" % path,
+                   "--child-desc=%s" % (desc or "klei_panel_child")]
         try:
             cp = subprocess.run(cmd, capture_output=True, timeout=timeout)
         except subprocess.TimeoutExpired:
             raise RuntimeError("子进程登录超时(%ds)" % timeout)
-        if cp.returncode != 0:
-            err = (cp.stderr or cp.stdout or b"").decode("utf-8", "replace")[-200:]
-            raise RuntimeError("子进程登录失败 rc=%s: %s" % (cp.returncode, err))
-        with open(path, encoding="utf-8") as f:
-            j = json.load(f)
+        try:
+            with open(path, encoding="utf-8") as f:
+                j = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            # 窗口化子进程的 stderr 落 _run.log 不进捕获管道,细节只能靠 JSON;
+            # 连 JSON 都没有 → 引导用户看日志
+            raise RuntimeError(
+                "子进程登录失败(rc=%s),详情见运行日志 _run.log" % cp.returncode)
+        if j.get("error"):
+            raise RuntimeError("子进程登录失败: %s" % j["error"])
         return j["Token"], j["UserID"], j.get("resp") or {}, None
     finally:
         try:
@@ -1431,10 +1436,25 @@ class Worker(threading.Thread):
 
     def _refresh_or_relogin(self, rt):
         """token 失效:续期→重登;UserID 门禁防跨账号错配。
-        refresh_or_relogin 内部续期失败会回落 full_login(进程级 SteamAPI 操作),须持门。"""
+        重登必须走子进程(_full_login_in_child)——主进程不得加载 steam dll,
+        否则 Steam 好友列表会把本机常驻显示为"游戏中"(90c4e43 修的核心)。
+        故不复用 HB.refresh_or_relogin(其内部回落会在主进程 full_login)。"""
         with LOGIN_GATE:
-            tok, uid, src, resp = HB.refresh_or_relogin(
-                rt.token, None, self.panel.get_settings()["desc"])
+            # ① TokenPurpose 续期(纯 HTTP,不碰 Steam)
+            st, raw = K.refresh_token(rt.token)
+            try:
+                j = json.loads(raw)
+            except json.JSONDecodeError:
+                j = None
+            if j and not j.get("Error") and j.get("Token"):
+                tok, uid, src, resp = j["Token"], j.get("UserID", "?"), "refresh", j
+            else:
+                # ② 整轮重登 → 一次性子进程(SteamAPI 在子进程内,退出即释放)
+                print("[worker] 续期失败 (%s %s),子进程整轮重登 ..."
+                      % (st, str(raw)[:120]), flush=True)
+                tok, uid, resp = _full_login_in_child(
+                    self.panel.get_settings()["desc"])[:3]
+                src = "relogin"
         if uid not in ("?", None) and uid != rt.userid:
             raise AccountMismatch(
                 "期望 %s 实得 %s" % (mask_userid(rt.userid), mask_userid(uid)))
@@ -2632,8 +2652,16 @@ def main():
         # 子进程模式:主进程从此不再加载 steam_api64.dll → Steam 好友列表不会
         # 把本机持续显示为"游戏中"(子进程退出即释放;纯 HTTP 心跳与 Steam 无关)。
         # 必须在单实例互斥/托盘之前 return。
+        # 失败不抛不弹窗(windowed 下 __main__ 兜底会给隐藏子进程弹幽灵 MessageBox):
+        # 把错误写进 JSON 的 "error" 键,由父进程读取并上屏。
         _ensure_stdio()
-        tok, uid, resp, _sid = HB.full_login(None, args.child_desc)
+        try:
+            tok, uid, resp, _sid = HB.full_login(None, args.child_desc)
+        except Exception as e:
+            with open(args.steam_login_child, "w", encoding="utf-8") as f:
+                json.dump({"error": "%s: %s" % (type(e).__name__, e)}, f,
+                          ensure_ascii=False)
+            return
         with open(args.steam_login_child, "w", encoding="utf-8") as f:
             json.dump({"Token": tok, "UserID": uid, "resp": resp}, f,
                       ensure_ascii=False)
@@ -2680,6 +2708,15 @@ if __name__ == "__main__":
     except SystemExit:
         raise
     except Exception:
+        import traceback
+        # 子进程模式:绝不能弹窗(隐藏进程的 MessageBox 会卡住父进程超时逻辑)
+        if "--steam-login-child" in " ".join(sys.argv) or any(
+                a.startswith("--steam-login-child=") for a in sys.argv):
+            try:
+                traceback.print_exc()
+            except Exception:
+                pass
+            sys.exit(1)
         try:
             import traceback
             traceback.print_exc()
